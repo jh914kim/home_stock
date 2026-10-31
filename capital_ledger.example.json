@@ -1,0 +1,53 @@
+{
+  "baseSummary": {
+    "kiwoom": {
+      "name": "키움증권",
+      "account": "종합계좌",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": "타 증권사 대체입출고 메모"
+    },
+    "toss": {
+      "name": "토스증권",
+      "account": "종합위탁",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": ""
+    },
+    "kisPension": {
+      "name": "한국투자증권",
+      "account": "연금저축",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": ""
+    },
+    "kisIsa": {
+      "name": "한국투자증권",
+      "account": "중개형 ISA",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": ""
+    },
+    "kisIrp": {
+      "name": "한국투자증권",
+      "account": "개인형 IRP",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": ""
+    },
+    "kisGeneral": {
+      "name": "한국투자증권",
+      "account": "일반위탁",
+      "deposit": 0,
+      "withdraw": 0,
+      "net": 0,
+      "note": ""
+    }
+  },
+  "manualTransactions": []
+}

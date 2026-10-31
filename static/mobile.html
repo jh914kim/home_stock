@@ -1,0 +1,2920 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-title" content="주식리포트">
+  <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <title>통합 주식 계좌 리포트 | 모바일</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f2f4f6;
+      --card-bg: #ffffff;
+      --text-main: #191f28;
+      --text-sub: #4e5968;
+      --text-muted: #8b95a1;
+      --border: #e5e8eb;
+      --border-light: #f2f4f6;
+      --toss-blue: #3182f6;
+      --toss-blue-light: #edf5ff;
+      --up-red: #f04452;
+      --up-bg: #fff0f1;
+      --down-blue: #3182f6;
+      --down-bg: #edf5ff;
+      --pure-blue: #4c6ef5;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --safe-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: calc(70px + var(--safe-bottom));
+      user-select: none;
+    }
+
+    /* 상단 고정 헤더 */
+    .mobile-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #1e293b 0%, #3182f6 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(30, 41, 59, 0.25);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 16.5px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #12b886;
+      box-shadow: 0 0 0 2px rgba(18, 184, 134, 0.2);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(18, 184, 134, 0.4); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(18, 184, 134, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(18, 184, 134, 0); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: var(--border-light);
+    }
+
+    .icon-btn.spinning svg {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 계좌 필터 스크롤 영역 */
+    .filter-scroll-wrap {
+      background: #ffffff;
+      padding: 10px 16px 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      border-bottom: 1px solid var(--border-light);
+      scrollbar-width: none;
+    }
+    .filter-scroll-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scope-chips {
+      display: inline-flex;
+      gap: 8px;
+    }
+
+    .scope-chip {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      background: var(--bg);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .scope-chip:active {
+      transform: scale(0.96);
+    }
+
+    .scope-chip.active {
+      background: var(--toss-blue);
+      color: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(49, 130, 246, 0.25);
+    }
+
+    /* 메인 컨테이너 */
+    .mobile-content {
+      padding: 16px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 공통 카드 */
+    .m-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 20px 18px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    /* 총 자산 메인 히어로 카드 */
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .hero-time {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .hero-total-amount {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hero-profit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .profit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .profit-badge.up {
+      background: var(--up-bg);
+      color: var(--up-red);
+    }
+
+    .profit-badge.down {
+      background: var(--down-bg);
+      color: var(--down-blue);
+    }
+
+    .profit-raw-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .profit-raw-text.up { color: var(--up-red); }
+    .profit-raw-text.down { color: var(--down-blue); }
+
+    /* 순수 원금 vs 자산 비교 배너 */
+    .pure-capital-banner {
+      background: #f8faff;
+      border: 1px solid #dbe4ff;
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .pure-banner-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .pure-banner-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #3b5bdb;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pure-banner-rate {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #edf2ff;
+      color: #364fc7;
+    }
+
+    .pure-banner-amount {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .pure-cap-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #191f28;
+      letter-spacing: -0.3px;
+    }
+
+    .pure-gain-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--up-red);
+    }
+
+    /* 3단계 자산 비교 바 */
+    .asset-ratio-box {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 88px;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+    }
+
+    .bar-label {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .bar-track {
+      height: 8px;
+      background: #eef0f3;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .bar-val {
+      text-align: right;
+      font-weight: 700;
+      color: var(--text-sub);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fill-pure { background: #4c6ef5; }
+    .fill-purchase { background: #8b95a1; }
+    .fill-current { background: #f04452; }
+
+    /* 자산 배분 비중 (국내 / 해외 / 예수금) */
+    .dist-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stacked-bar {
+      display: flex;
+      height: 14px;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      background: #e5e8eb;
+    }
+
+    .seg-kr { background: #3182f6; transition: width 0.4s ease; }
+    .seg-us { background: #f04452; transition: width 0.4s ease; }
+    .seg-cash { background: #12b886; transition: width 0.4s ease; }
+
+    .dist-legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+    .dot-kr { background: #3182f6; }
+    .dot-us { background: #f04452; }
+    .dot-cash { background: #12b886; }
+
+    .legend-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .legend-name {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .legend-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 보유 종목 섹션 */
+    .holdings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .holdings-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .holdings-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--toss-blue);
+      background: var(--toss-blue-light);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* 검색 & 정렬 바 */
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 0 12px 0 34px;
+      font-size: 13px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--toss-blue);
+      background: #ffffff;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .sort-select {
+      height: 38px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      outline: none;
+    }
+
+    /* 종목 리스트 */
+    .stock-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stock-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 12px;
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      cursor: pointer;
+      transition: background-color 0.15s, transform 0.1s;
+    }
+
+    .stock-item:active {
+      background-color: #f7f9fa;
+      transform: scale(0.99);
+    }
+
+    .stock-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .stock-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #f2f4f6;
+      color: #4e5968;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .stock-avatar.kr {
+      background: #e7f5ff;
+      color: #1971c2;
+    }
+
+    .stock-avatar.us {
+      background: #fff5f5;
+      color: #e03131;
+    }
+
+    .stock-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stock-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stock-name {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #f2f4f6;
+      color: #6b7684;
+      flex-shrink: 0;
+    }
+
+    .account-tag.toss { background: #e8f3ff; color: #1b64da; }
+    .account-tag.kis { background: #fff3e6; color: #d9480f; }
+    .account-tag.ria { background: #e6fcf5; color: #0ca678; }
+
+    .stock-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stock-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      flex-shrink: 0;
+      margin-left: 10px;
+    }
+
+    .stock-price {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stock-gain {
+      font-size: 12px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .stock-gain.up { color: var(--up-red); }
+    .stock-gain.down { color: var(--down-blue); }
+    .stock-gain.zero { color: var(--text-muted); }
+
+    /* 바텀시트 모달 (종목 상세) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .bottom-sheet {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 20px calc(24px + var(--safe-bottom));
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.active .bottom-sheet {
+      transform: translateY(0);
+    }
+
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: #dee2e6;
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .sheet-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .sheet-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .sheet-close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #f2f4f6;
+      color: var(--text-sub);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .sheet-summary-box {
+      background: #f8f9fa;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .sheet-sum-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      font-size: 13.5px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .sheet-sum-row:last-child {
+      border-bottom: none;
+    }
+
+    .sheet-sum-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .sheet-sum-val {
+      font-weight: 700;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 하단 고정 바로가기 / PC 버전 전환 */
+    .mobile-footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 90;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      padding: 10px 16px calc(10px + var(--safe-bottom));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .footer-status {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .pc-mode-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--toss-blue);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: var(--toss-blue-light);
+    }
+
+    /* 로딩 인디케이터 */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(3px);
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .loading-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #e5e8eb;
+      border-top-color: var(--toss-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* 토스트 알림 */
+    .toast {
+      position: fixed;
+      bottom: calc(75px + var(--safe-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(25, 31, 40, 0.92);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 300;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* 탭 세그먼트 스위치 */
+    .m-segment-bar {
+      display: flex;
+      background: #e9ecef;
+      border-radius: var(--radius-md);
+      padding: 4px;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .m-seg-btn {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 38px;
+      border: none;
+      background: transparent;
+      border-radius: calc(var(--radius-md) - 3px);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .m-seg-btn span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .m-seg-btn.active {
+      background: #ffffff;
+      color: var(--toss-blue);
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    /* 차트 전용 카드 */
+    .m-chart-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .m-chart-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .m-chart-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .m-chart-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .m-chart-toggles {
+      display: inline-flex;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .m-toggle-btn {
+      border: none;
+      background: transparent;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .m-toggle-btn.active {
+      background: #ffffff;
+      color: var(--text-main);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .m-chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .top-weight-list {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      border-top: 1px solid var(--border-light);
+      padding-top: 12px;
+    }
+
+    .top-weight-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+    }
+
+    .top-weight-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .top-weight-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .top-weight-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .top-weight-val {
+      font-weight: 700;
+      color: var(--text-sub);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 국내상장 해외추종 ETF 분류 토글 스위치 */
+    .m-toggle-row {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .m-switch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      user-select: none;
+    }
+
+    .m-switch-label input {
+      display: none;
+    }
+
+    .m-slider {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: #dee2e6;
+      border-radius: 999px;
+      transition: background 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .m-slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      top: 2px;
+      background: #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .m-switch-label input:checked + .m-slider {
+      background: var(--toss-blue);
+    }
+
+    .m-switch-label input:checked + .m-slider::before {
+      transform: translateX(16px);
+    }
+
+    .m-switch-text {
+      line-height: 1.35;
+    }
+
+    /* 구간별 수익률 히스토리 전용 스타일 */
+    .m-hist-unit-chips {
+      display: flex;
+      gap: 6px;
+    }
+    .m-hist-chip {
+      flex: 1;
+      padding: 8px 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .m-hist-chip.active {
+      background: var(--toss-blue-light);
+      color: var(--toss-blue);
+      border-color: var(--toss-blue);
+      font-weight: 800;
+    }
+
+    .m-hist-range-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .m-hist-range-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .m-hist-range-chip {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .m-hist-range-chip.active {
+      background: var(--text-main);
+      color: #ffffff;
+      border-color: var(--text-main);
+      font-weight: 700;
+    }
+
+    .m-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .m-kpi-box {
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+    }
+    .m-kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .m-kpi-val {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .m-kpi-sub {
+      font-size: 10.5px;
+      color: var(--text-sub);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .m-hist-timeline {
+      display: flex;
+      flex-direction: column;
+    }
+    .m-hist-item {
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .m-hist-item:last-child {
+      border-bottom: none;
+    }
+    .m-hist-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .m-hist-period {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .m-hist-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .m-hist-badge.up {
+      background: var(--up-bg);
+      color: var(--up-red);
+    }
+    .m-hist-badge.down {
+      background: var(--down-bg);
+      color: var(--down-blue);
+    }
+    .m-hist-row-mid {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .m-hist-row-bot {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .m-btn-load-more {
+      width: 100%;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+    .m-btn-load-more:active {
+      background: #e5e8eb;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 헤더 -->
+  <header class="mobile-header">
+    <div class="brand-wrap">
+      <div class="brand-icon" title="통합 주식 계좌 리포트">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 18.5L8.5 12.5L13 15L20.5 6.5V18.5H3Z" fill="rgba(255,255,255,0.25)"/>
+          <path d="M3 18.5L8.5 12.5L13 15L20.5 6.5" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="20.5" cy="6.5" r="2.5" fill="#ff4d5e" stroke="#ffffff" stroke-width="1.3"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <span>통합 주식 계좌 리포트</span>
+        <span class="live-dot" title="실시간 반영 중"></span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="btnInstallPwaMobile" title="앱으로 설치" style="display: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </button>
+      <button class="icon-btn" id="btnRefresh" title="새로고침">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+      </button>
+      <a href="/?view=pc" class="icon-btn" id="btnGoPcHeader" title="PC 전체 화면으로 전환">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- 계좌 범위 스크롤 필터 -->
+  <div class="filter-scroll-wrap">
+    <div class="scope-chips" id="scopeChips">
+      <button class="scope-chip active" data-scope="ALL">전체 6개 계좌</button>
+      <button class="scope-chip" data-scope="BROKERAGE">토스 위탁</button>
+      <button class="scope-chip" data-scope="RIA">토스 RIA(공모주)</button>
+      <button class="scope-chip" data-scope="KIS_ALL">한국투자증권 전체</button>
+      <button class="scope-chip" data-scope="KIS_1">한투 위탁</button>
+      <button class="scope-chip" data-scope="KIS_2">한투 ISA</button>
+      <button class="scope-chip" data-scope="KIS_3">한투 연금</button>
+      <button class="scope-chip" data-scope="KIS_4">한투 IRP</button>
+    </div>
+  </div>
+
+  <!-- 메인 컨텐츠 -->
+  <main class="mobile-content">
+
+    <!-- 1. 메인 총 자산 히어로 카드 -->
+    <section class="m-card hero-card">
+      <div class="hero-label">
+        <span>현재 총 평가자산 (세전)</span>
+        <span class="hero-time" id="updateTime">-</span>
+      </div>
+      <div class="hero-total-amount" id="totalMv">-원</div>
+
+      <div class="hero-profit-row">
+        <span class="profit-badge up" id="profitBadge">
+          <span id="profitRate">+0.00%</span>
+        </span>
+        <span class="profit-raw-text up" id="profitAmount">+0원</span>
+      </div>
+
+      <!-- 순수 투자 원금 (실입금 현금) 비교 배너 -->
+      <div class="pure-capital-banner" id="mPureCapitalBanner">
+        <div class="pure-banner-head">
+          <span class="pure-banner-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
+            </svg>
+            순수 투자 원금 (내 돈 실입금)
+          </span>
+          <span class="pure-banner-rate" id="pureReturnRate">순수 +0.00%</span>
+        </div>
+        <div class="pure-banner-amount">
+          <span class="pure-cap-val" id="pureCapitalVal">-원</span>
+          <span class="pure-gain-val" id="pureProfitVal">순수익 +0원</span>
+        </div>
+      </div>
+
+      <!-- 3단계 자산 비례 바 -->
+      <div class="asset-ratio-box">
+        <div class="bar-row" id="mRowPureBar">
+          <span class="bar-label">순수원금</span>
+          <div class="bar-track">
+            <div class="bar-fill fill-pure" id="barPure" style="width: 63%"></div>
+          </div>
+          <span class="bar-val" id="barPureVal">-</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">매수원금</span>
+          <div class="bar-track">
+            <div class="bar-fill fill-purchase" id="barPurchase" style="width: 76%"></div>
+          </div>
+          <span class="bar-val" id="barPurchaseVal">-</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">현재평가</span>
+          <div class="bar-track">
+            <div class="bar-fill fill-current" id="barCurrent" style="width: 100%"></div>
+          </div>
+          <span class="bar-val" id="barCurrentVal">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 자산 배분 비중 (국내 / 해외 / 예수금) -->
+    <section class="m-card">
+      <div class="dist-card-title">
+        <span>자산 배분 구성</span>
+        <span style="font-size: 11.5px; color: var(--text-muted);" id="fxRateText">환율: -원</span>
+      </div>
+
+      <!-- 국내상장 해외추종 ETF를 해외주식으로 분류 토글 -->
+      <div class="m-toggle-row">
+        <label class="m-switch-label" title="국내에 상장된 해외주식 추종 ETF(예: TIGER 미국S&P500, 미국나스닥100 등)를 해외주식으로 간주하여 분류·합산합니다">
+          <input type="checkbox" id="mOverseasEtfToggle" />
+          <span class="m-slider"></span>
+          <span class="m-switch-text">국내상장 해외추종 ETF를 해외주식으로 분류</span>
+        </label>
+      </div>
+
+      <div class="stacked-bar">
+        <div class="seg-kr" id="segKr" style="width: 85%;"></div>
+        <div class="seg-us" id="segUs" style="width: 15%;"></div>
+      </div>
+      <div class="dist-legend">
+        <div class="legend-item">
+          <div class="legend-dot dot-kr"></div>
+          <div class="legend-info">
+            <span class="legend-name" id="distKrName">국내 자산</span>
+            <span class="legend-val" id="distKrVal">-</span>
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot dot-us"></div>
+          <div class="legend-info">
+            <span class="legend-name" id="distUsName">해외 자산 (환산)</span>
+            <span class="legend-val" id="distUsVal">-</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탭 전환 세그먼트 (비중·손익 vs 구간별 수익률 vs 보유 종목) -->
+    <div class="m-segment-bar">
+      <button class="m-seg-btn active" id="mTabBtnCharts" data-tab="charts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+          <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+        </svg>
+        <span>비중·손익</span>
+      </button>
+      <button class="m-seg-btn" id="mTabBtnHistory" data-tab="history">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+          <polyline points="16 7 22 7 22 13"></polyline>
+        </svg>
+        <span>구간 수익률</span>
+      </button>
+      <button class="m-seg-btn" id="mTabBtnHoldings" data-tab="holdings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"></line>
+          <line x1="8" y1="12" x2="21" y2="12"></line>
+          <line x1="8" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>
+        <span>보유 종목</span>
+      </button>
+    </div>
+
+    <!-- 3-A. 보유 종목 리스트 섹션 -->
+    <section class="m-card" id="mSectionHoldings" style="display: none;">
+      <div class="holdings-header">
+        <div class="holdings-title">
+          <span>보유 종목</span>
+          <span class="holdings-count" id="holdingsCount">0</span>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="search-input-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" class="search-input" id="stockSearch" placeholder="종목명, 심볼 검색">
+        </div>
+        <select class="sort-select" id="stockSort">
+          <option value="mv_desc">평가금액순</option>
+          <option value="rate_desc">수익률 높은순</option>
+          <option value="rate_asc">수익률 낮은순</option>
+          <option value="profit_desc">손익 큰순</option>
+          <option value="name_asc">종목명순</option>
+        </select>
+      </div>
+
+      <div class="stock-list" id="stockList">
+        <!-- 동적 렌더링 -->
+      </div>
+    </section>
+
+    <!-- 3-B. 모바일 최적화 분석 차트 섹션 (3종) -->
+    <div id="mSectionCharts" style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- 차트 1: 포트폴리오 종목 비중 (도넛 + TOP 5) -->
+      <section class="m-chart-card">
+        <div class="m-chart-head">
+          <div>
+            <div class="m-chart-title">포트폴리오 종목 비중</div>
+            <div class="m-chart-sub">투자 종목별 자산 구성 비율</div>
+          </div>
+          <div class="m-chart-toggles">
+            <button class="m-toggle-btn active" id="btnWeightMv">평가금액 기준</button>
+            <button class="m-toggle-btn" id="btnWeightPur">매수원금 기준</button>
+          </div>
+        </div>
+        <div class="m-chart-wrap" style="height: 220px;">
+          <canvas id="mWeightChart"></canvas>
+        </div>
+        <div class="top-weight-list" id="mTopWeightList">
+          <!-- 상위 TOP 5 종목 렌더링 -->
+        </div>
+      </section>
+
+      <!-- 차트 2: 종목별 수익금 기여도 (수평 바) -->
+      <section class="m-chart-card">
+        <div class="m-chart-head">
+          <div>
+            <div class="m-chart-title" id="mProfitTitle">종목별 수익금 기여도</div>
+            <div class="m-chart-sub">종목별 전체 수익 기여 규모</div>
+          </div>
+          <div class="m-chart-toggles">
+            <button class="m-toggle-btn active" id="btnProfitAmt">수익금 (원)</button>
+            <button class="m-toggle-btn" id="btnProfitRate">수익률 (%)</button>
+          </div>
+        </div>
+        <div class="m-chart-wrap" style="height: 380px;">
+          <canvas id="mProfitChart"></canvas>
+        </div>
+      </section>
+
+      <!-- 차트 3: 종목별 매수원금 vs 평가금액 (비교 바) -->
+      <section class="m-chart-card">
+        <div class="m-chart-head">
+          <div>
+            <div class="m-chart-title">종목별 매수원금 vs 현재 평가금액</div>
+            <div class="m-chart-sub">각 종목을 얼마에 샀고 현재 얼마가 되었는지 비교</div>
+          </div>
+        </div>
+        <div class="m-chart-wrap" style="height: 260px;">
+          <canvas id="mCompareChart"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <!-- 3-C. 구간별 수익률 변화 히스토리 섹션 -->
+    <div id="mSectionHistory" style="display: none; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
+
+      <!-- 필터 카드 (단위 & 기간) -->
+      <section class="m-card" style="padding: 14px 16px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">분석 기준 단위</div>
+        <div class="m-hist-unit-chips" id="mHistUnitChips">
+          <button class="m-hist-chip active" data-unit="daily">일별 (기본)</button>
+          <button class="m-hist-chip" data-unit="monthly">월별</button>
+          <button class="m-hist-chip" data-unit="yearly">연도별</button>
+        </div>
+
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 12px 0 8px;">조회 기간</div>
+        <!-- 일별 기간 칩 -->
+        <div class="m-hist-range-scroll" id="mHistDailyRange">
+          <button class="m-hist-range-chip" data-days="30">최근 1개월</button>
+          <button class="m-hist-range-chip active" data-days="90">최근 3개월</button>
+          <button class="m-hist-range-chip" data-days="180">최근 6개월</button>
+          <button class="m-hist-range-chip" data-days="365">최근 1년</button>
+          <button class="m-hist-range-chip" data-days="9999">전체 기간</button>
+        </div>
+        <!-- 월별 기간 칩 -->
+        <div class="m-hist-range-scroll" id="mHistMonthlyRange" style="display: none;">
+          <button class="m-hist-range-chip" data-months="3">최근 3개월</button>
+          <button class="m-hist-range-chip" data-months="6">최근 6개월</button>
+          <button class="m-hist-range-chip active" data-months="12">최근 1년</button>
+          <button class="m-hist-range-chip" data-months="24">최근 2년</button>
+          <button class="m-hist-range-chip" data-months="YTD">올해 (YTD)</button>
+          <button class="m-hist-range-chip" data-months="9999">전체 기간</button>
+        </div>
+      </section>
+
+      <!-- 구간 성과 핵심 KPI 카드 (2x2 그리드) -->
+      <section class="m-card" style="padding: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <span style="font-size: 14.5px; font-weight: 800; color: var(--text-main);">구간 성과 핵심 요약</span>
+          <span style="font-size: 11.5px; color: var(--text-muted);" id="mHistPeriodBadge">-</span>
+        </div>
+        <div class="m-kpi-grid">
+          <div class="m-kpi-box">
+            <span class="m-kpi-label">구간 손익 &amp; 등락률</span>
+            <div class="m-kpi-val" id="mHistKpiStartEnd">-</div>
+            <span class="m-kpi-sub" id="mHistKpiStartEndSub">-</span>
+          </div>
+          <div class="m-kpi-box">
+            <span class="m-kpi-label">최근 구간 변동</span>
+            <div class="m-kpi-val" id="mHistKpiLatestDelta">-</div>
+            <span class="m-kpi-sub" id="mHistKpiLatestDeltaSub">-</span>
+          </div>
+          <div class="m-kpi-box">
+            <span class="m-kpi-label">구간 최고 (Peak)</span>
+            <div class="m-kpi-val text-up" id="mHistKpiPeak">-</div>
+            <span class="m-kpi-sub" id="mHistKpiPeakSub">-</span>
+          </div>
+          <div class="m-kpi-box">
+            <span class="m-kpi-label">구간 최저 (Trough)</span>
+            <div class="m-kpi-val text-down" id="mHistKpiTrough">-</div>
+            <span class="m-kpi-sub" id="mHistKpiTroughSub">-</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 차트 1: 누적 수익률 / 수익금 추이 -->
+      <section class="m-chart-card">
+        <div class="m-chart-head">
+          <div>
+            <div class="m-chart-title" id="mHistMainChartTitle">누적 수익률 추이</div>
+            <div class="m-chart-sub" id="mHistMainChartSub">선택한 구간 동안의 일별 누적 흐름</div>
+          </div>
+          <div class="m-chart-toggles" id="mHistMetricToggles">
+            <button class="m-toggle-btn active" data-metric="rate">수익률(%)</button>
+            <button class="m-toggle-btn" data-metric="profit">수익금(원)</button>
+            <button class="m-toggle-btn" data-metric="value">자산 vs 원금</button>
+          </div>
+        </div>
+        <div class="m-chart-wrap" style="height: 230px;">
+          <canvas id="mHistoryReturnChart"></canvas>
+        </div>
+      </section>
+
+      <!-- 차트 2: 구간별 손익 증감 바 차트 -->
+      <section class="m-chart-card">
+        <div class="m-chart-head">
+          <div>
+            <div class="m-chart-title" id="mHistBarChartTitle">구간별 손익 증감</div>
+            <div class="m-chart-sub">직전 구간 대비 자산 증감액</div>
+          </div>
+          <div class="m-chart-toggles" id="mHistDeltaToggles">
+            <button class="m-toggle-btn active" data-delta="amount">증감액(원)</button>
+            <button class="m-toggle-btn" data-delta="rateDiff">수익률변화(%p)</button>
+          </div>
+        </div>
+        <div class="m-chart-wrap" style="height: 210px;">
+          <canvas id="mHistoryDeltaChart"></canvas>
+        </div>
+      </section>
+
+      <!-- 구간별 상세 타임라인 카드 리스트 -->
+      <section class="m-card" style="padding: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <span style="font-size: 15px; font-weight: 800; color: var(--text-main);">구간별 상세 기록</span>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">최신 일자부터 역순 표시</div>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; color: var(--toss-blue);" id="mHistCountBadge">0건</span>
+        </div>
+        <div class="m-hist-timeline" id="mHistTimelineList">
+          <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
+            데이터를 불러오는 중입니다...
+          </div>
+        </div>
+        <button class="m-btn-load-more" id="mHistLoadMoreBtn" style="display: none;">
+          더 많은 기록 보기 (<span id="mHistMoreCount">0</span>개 남음)
+        </button>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- 하단 고정 바 -->
+  <footer class="mobile-footer-bar">
+    <div class="footer-left">
+      <span class="footer-status" id="footerScopeText">전체 6개 계좌 조회 중</span>
+    </div>
+    <a href="/?view=pc" class="pc-mode-link" id="btnGoPcFooter">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+      <span>PC 전체 화면</span>
+    </a>
+  </footer>
+
+  <!-- 종목 상세 바텀시트 모달 -->
+  <div class="modal-overlay" id="sheetOverlay">
+    <div class="bottom-sheet" id="bottomSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <div>
+          <div class="sheet-title" id="sheetStockName">-</div>
+          <div class="sheet-sub" id="sheetStockCode">-</div>
+        </div>
+        <button class="sheet-close-btn" id="sheetCloseBtn">&times;</button>
+      </div>
+
+      <div class="sheet-summary-box">
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">계좌 구분</span>
+          <span class="sheet-sum-val" id="sheetAccountName">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">보유 수량</span>
+          <span class="sheet-sum-val" id="sheetQty">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">현재가</span>
+          <span class="sheet-sum-val" id="sheetCurrentPrice">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">평균 매수가</span>
+          <span class="sheet-sum-val" id="sheetAvgPrice">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">총 매수금액</span>
+          <span class="sheet-sum-val" id="sheetPurchaseAmount">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">현재 평가금액</span>
+          <span class="sheet-sum-val" id="sheetMarketValue" style="color: var(--toss-blue);">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">평가 손익</span>
+          <span class="sheet-sum-val" id="sheetProfit">-</span>
+        </div>
+        <div class="sheet-sum-row">
+          <span class="sheet-sum-label">수익률</span>
+          <span class="sheet-sum-val" id="sheetProfitRate">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로딩 오버레이 & 토스트 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+  <div class="toast" id="toastMessage">새로고침 되었습니다.</div>
+
+  <script>
+    // 전역 상태
+    const state = {
+      scope: 'ALL',
+      dashboard: null,
+      capital: null,
+      historyData: null,
+      historyUnit: 'daily', // 'daily' | 'monthly' | 'yearly'
+      historyDays: 90,
+      historyMonths: '12',
+      historyMetric: 'rate', // 'rate' | 'profit' | 'value'
+      historyDelta: 'amount', // 'amount' | 'rateDiff'
+      historyVisibleCount: 15,
+      searchKeyword: '',
+      sortKey: 'mv_desc',
+      activeTab: 'charts', // 'charts' | 'history' | 'holdings'
+      weightMode: 'mv', // 'mv' | 'purchase'
+      profitMode: 'amt', // 'amt' | 'rate'
+      overseasEtfAsUs: false // 디폴트: PC와 동일하게 미체크(false)
+    };
+
+    // 차트 인스턴스들
+    let chartWeightInst = null;
+    let chartProfitInst = null;
+    let chartCompareInst = null;
+    let mHistoryReturnChartInst = null;
+    let mHistoryDeltaChartInst = null;
+    let historyReqSeq = 0;
+
+    const palette = [
+      '#3182f6', '#f04452', '#00b894', '#f59f00', '#7950f2',
+      '#12b886', '#e64980', '#4c6ef5', '#fd7e14', '#868e96'
+    ];
+
+    // 포맷팅 함수들
+    function fmtKrw(num, showSign = false) {
+      if (num === null || num === undefined || isNaN(num)) return '0원';
+      const round = Math.round(Number(num));
+      const s = Math.abs(round).toLocaleString('ko-KR') + '원';
+      if (!showSign) return round < 0 ? '-' + s : s;
+      if (round > 0) return '+' + s;
+      if (round < 0) return '-' + s;
+      return '0원';
+    }
+
+    function fmtPct(num) {
+      if (num === null || num === undefined || isNaN(num)) return '0.00%';
+      const n = Number(num);
+      const sign = n > 0 ? '+' : '';
+      return `${sign}${n.toFixed(2)}%`;
+    }
+
+    function signClass(val) {
+      if (val > 0) return 'up';
+      if (val < 0) return 'down';
+      return 'zero';
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastMessage');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function setLoading(isLoading) {
+      document.getElementById('loadingOverlay').classList.toggle('active', isLoading);
+    }
+
+    // 데이터 가져오기
+    async function loadData(force = false) {
+      const btn = document.getElementById('btnRefresh');
+      btn.classList.add('spinning');
+      if (!state.dashboard) setLoading(true);
+
+      try {
+        const [dashRes, capRes] = await Promise.all([
+          fetch(`/api/dashboard?scope=${state.scope}${force ? '&refresh=1' : ''}`, { credentials: 'same-origin' }),
+          fetch('/api/capital', { credentials: 'same-origin' })
+        ]);
+
+        if (!dashRes.ok) throw new Error('대시보드 데이터를 가져오지 못했습니다.');
+        state.dashboard = await dashRes.json();
+
+        if (capRes.ok) {
+          state.capital = await capRes.json();
+        }
+
+        if (state.activeTab === 'history') {
+          await fetchReturnsHistory(force);
+        } else {
+          state.historyData = null;
+        }
+
+        render();
+        if (force) showToast('최신 시세로 업데이트 완료!');
+      } catch (err) {
+        console.error(err);
+        showToast('데이터 조회 실패: ' + err.message);
+      } finally {
+        setLoading(false);
+        btn.classList.remove('spinning');
+      }
+    }
+
+    // 렌더링 메인
+    function render() {
+      if (!state.dashboard) return;
+      renderHero();
+      renderDistribution();
+      if (state.activeTab === 'holdings') {
+        renderHoldings();
+      } else if (state.activeTab === 'charts') {
+        renderMobileCharts();
+      } else if (state.activeTab === 'history') {
+        renderMobileHistory();
+      }
+    }
+
+    // 1. 히어로 카드 렌더링
+    function renderHero() {
+      const d = state.dashboard;
+      const totalKrw = d.totalKrw || {};
+      const mv = totalKrw.marketValue || 0;
+      const purchase = totalKrw.purchaseAmount || 0;
+      const profit = totalKrw.profit || (mv - purchase);
+      const rate = totalKrw.profitRate || (purchase > 0 ? (profit / purchase) * 100 : 0);
+
+      // 시간
+      document.getElementById('updateTime').textContent = d.asOf || new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+      // 총 금액
+      document.getElementById('totalMv').textContent = fmtKrw(mv);
+
+      // 수익 배지 & 텍스트
+      const badge = document.getElementById('profitBadge');
+      const rateText = document.getElementById('profitRate');
+      const amtText = document.getElementById('profitAmount');
+      const sc = signClass(profit);
+
+      badge.className = `profit-badge ${sc}`;
+      rateText.textContent = fmtPct(rate);
+
+      amtText.className = `profit-raw-text ${sc}`;
+      amtText.textContent = fmtKrw(profit, true);
+
+      const isAll = state.scope === 'ALL';
+
+      // 순수 원금 배너 및 게이지 행: 전체 계좌(ALL)일 때만 표시
+      const mBanner = document.getElementById('mPureCapitalBanner');
+      if (mBanner) mBanner.style.display = isAll ? 'block' : 'none';
+      const mRowPure = document.getElementById('mRowPureBar');
+      if (mRowPure) mRowPure.style.display = isAll ? 'grid' : 'none';
+
+      // 순수 원금 계산
+      const cap = state.capital || (d && d.capitalSummary);
+      const pureCap = (cap && cap.totalNetCapitalKrw) || 226942111;
+      const pureProfit = mv - pureCap;
+      const pureRate = pureCap > 0 ? (pureProfit / pureCap) * 100 : 0;
+
+      document.getElementById('pureCapitalVal').textContent = fmtKrw(pureCap);
+      const pureGainEl = document.getElementById('pureProfitVal');
+      pureGainEl.textContent = `순수익 ` + fmtKrw(pureProfit, true);
+      pureGainEl.style.color = pureProfit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+
+      const pureRateEl = document.getElementById('pureReturnRate');
+      pureRateEl.textContent = `순수 ` + fmtPct(pureRate);
+      pureRateEl.style.background = pureProfit >= 0 ? '#edf2ff' : '#fff0f0';
+      pureRateEl.style.color = pureProfit >= 0 ? '#364fc7' : '#c92a2a';
+
+      // 3단계 비율 바
+      const maxVal = isAll ? Math.max(pureCap, purchase, mv, 1) : Math.max(purchase, mv, 1);
+      const wPure = Math.max(10, Math.round((pureCap / maxVal) * 100));
+      const wPur = Math.max(10, Math.round((purchase / maxVal) * 100));
+      const wMv = Math.max(10, Math.round((mv / maxVal) * 100));
+
+      document.getElementById('barPure').style.width = wPure + '%';
+      document.getElementById('barPureVal').textContent = fmtKrw(pureCap);
+
+      document.getElementById('barPurchase').style.width = wPur + '%';
+      document.getElementById('barPurchaseVal').textContent = fmtKrw(purchase);
+
+      document.getElementById('barCurrent').style.width = wMv + '%';
+      document.getElementById('barCurrentVal').textContent = fmtKrw(mv);
+      document.getElementById('barCurrentVal').style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+    }
+
+    // 2. 자산 배분 비중 렌더링
+    function renderDistribution() {
+      const d = state.dashboard;
+      const kr = d.krwMarket || {};
+      const us = d.usdMarket || {};
+      const allItems = d.items || [];
+      const etfItems = state.overseasEtfAsUs
+        ? allItems.filter(i => i.currency === 'KRW' && i.isOverseasEtf)
+        : [];
+      const etfMvKrw = etfItems.reduce((s, i) => s + (i.marketValueKrw || 0), 0);
+
+      const krMv = Math.max(0, (kr.marketValue || 0) - etfMvKrw);
+      const usMv = (us.marketValueKrw || 0) + etfMvKrw;
+      const total = krMv + usMv || 1;
+
+      const pKr = Math.round((krMv / total) * 100);
+      const pUs = 100 - pKr;
+
+      document.getElementById('segKr').style.width = pKr + '%';
+      document.getElementById('segUs').style.width = pUs + '%';
+
+      const krNameEl = document.getElementById('distKrName');
+      const usNameEl = document.getElementById('distUsName');
+      if (krNameEl) krNameEl.textContent = state.overseasEtfAsUs ? '국내주식 (국내사)' : '국내 자산';
+      if (usNameEl) usNameEl.textContent = state.overseasEtfAsUs && etfItems.length > 0 ? `해외 자산 (+ETF ${etfItems.length}개)` : '해외 자산 (환산)';
+
+      document.getElementById('distKrVal').textContent = `${fmtKrw(krMv)} (${pKr}%)`;
+      document.getElementById('distUsVal').textContent = `${fmtKrw(usMv)} (${pUs}%)`;
+
+      const fxRate = (typeof d.exchangeRate === 'object' && d.exchangeRate ? d.exchangeRate.rate : d.exchangeRate) || 1338.9;
+      document.getElementById('fxRateText').textContent = `환율: 1$ = ${Number(fxRate).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}원`;
+    }
+
+    // 3. 종목 리스트 렌더링
+    function renderHoldings() {
+      const d = state.dashboard;
+      let items = (d.items || []).slice();
+
+      // 검색 필터
+      const kw = state.searchKeyword.trim().toLowerCase();
+      if (kw) {
+        items = items.filter(it => 
+          (it.name && it.name.toLowerCase().includes(kw)) ||
+          (it.symbol && it.symbol.toLowerCase().includes(kw))
+        );
+      }
+
+      // 정렬
+      items.sort((a, b) => {
+        const aMv = a.marketValueKrw || a.marketValue || 0;
+        const bMv = b.marketValueKrw || b.marketValue || 0;
+        const aRate = a.returnRatePct || 0;
+        const bRate = b.returnRatePct || 0;
+        const aPl = a.profitLossKrw || a.profitLoss || 0;
+        const bPl = b.profitLossKrw || b.profitLoss || 0;
+
+        switch (state.sortKey) {
+          case 'mv_desc': return bMv - aMv;
+          case 'rate_desc': return bRate - aRate;
+          case 'rate_asc': return aRate - bRate;
+          case 'profit_desc': return bPl - aPl;
+          case 'name_asc': return (a.name || '').localeCompare(b.name || '');
+          default: return bMv - aMv;
+        }
+      });
+
+      document.getElementById('holdingsCount').textContent = items.length;
+      const listEl = document.getElementById('stockList');
+
+      if (items.length === 0) {
+        listEl.innerHTML = `<div style="text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 13.5px;">보유 종목이 없거나 검색 결과가 없습니다.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map((it, idx) => {
+        const isOverseasClassified = it.marketCountry === 'US' || (it.currency && it.currency !== 'KRW') || (state.overseasEtfAsUs && it.isOverseasEtf);
+        const mv = it.marketValueKrw || it.marketValue || 0;
+        const profit = it.profitLossKrw || it.profitLoss || 0;
+        const rate = it.returnRatePct || 0;
+        const sc = signClass(profit);
+
+        // 아바타 텍스트
+        const avatarTxt = isOverseasClassified ? (it.symbol || 'US').slice(0, 2).toUpperCase() : (it.name || '주').slice(0, 1);
+
+        // 계좌 태그
+        let acctTag = it.shortLabel || '토스';
+        let acctClass = 'toss';
+        const rawAcct = (it.accountLabel || it.accountTag || '').toUpperCase();
+        if (rawAcct.includes('RIA')) { acctTag = 'RIA'; acctClass = 'ria'; }
+        else if (rawAcct.includes('ISA')) { acctTag = '한투 ISA'; acctClass = 'kis'; }
+        else if (rawAcct.includes('연금')) { acctTag = '한투 연금'; acctClass = 'kis'; }
+        else if (rawAcct.includes('IRP')) { acctTag = '한투 IRP'; acctClass = 'kis'; }
+        else if (rawAcct.includes('KIS') || rawAcct.includes('한투') || rawAcct.includes('위탁')) { acctTag = '한투'; acctClass = 'kis'; }
+
+        // 해외추종 ETF 뱃지
+        const etfBadge = it.isOverseasEtf ? '<span class="account-tag" style="background:#fff0f6; color:#d6336c;">해외ETF</span>' : '';
+
+        // 수량 및 평단가
+        const qtyStr = `${Number(it.quantity || 0).toLocaleString()}주`;
+        const avgPrice = it.averagePurchasePriceKrw || it.averagePurchasePrice || 0;
+        const avgPriceStr = fmtKrw(avgPrice);
+
+        return `
+          <div class="stock-item" onclick="openStockSheet(${idx})">
+            <div class="stock-left">
+              <div class="stock-avatar ${isOverseasClassified ? 'us' : 'kr'}">${avatarTxt}</div>
+              <div class="stock-meta">
+                <div class="stock-name-row">
+                  <span class="stock-name">${it.name || it.symbol || '-'}</span>
+                  ${etfBadge}
+                  <span class="account-tag ${acctClass}">${acctTag}</span>
+                </div>
+                <div class="stock-sub">${qtyStr} · 평단 ${avgPriceStr}</div>
+              </div>
+            </div>
+            <div class="stock-right">
+              <span class="stock-price">${fmtKrw(mv)}</span>
+              <span class="stock-gain ${sc}">${fmtPct(rate)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 모달 참조를 위해 정렬된 items 보관
+      state.filteredItems = items;
+    }
+
+    // 종목 상세 바텀시트 열기
+    function openStockSheet(idx) {
+      const it = (state.filteredItems || [])[idx];
+      if (!it) return;
+
+      const isUs = it.marketCountry === 'US' || (it.currency && it.currency !== 'KRW');
+      const mv = it.marketValueKrw || it.marketValue || 0;
+      const profit = it.profitLossKrw || it.profitLoss || 0;
+      const rate = it.returnRatePct || 0;
+      const curPrice = it.lastPriceKrw || it.lastPrice || 0;
+      const avgPrice = it.averagePurchasePriceKrw || it.averagePurchasePrice || 0;
+      const purAmt = it.purchaseAmountKrw || it.purchaseAmount || 0;
+
+      document.getElementById('sheetStockName').textContent = it.name || it.symbol || '-';
+      document.getElementById('sheetStockCode').textContent = `${it.symbol || '-'} · ${isUs ? '해외 주식' : '국내 주식'}`;
+      document.getElementById('sheetAccountName').textContent = it.accountLabel || it.shortLabel || '통합 계좌';
+      document.getElementById('sheetQty').textContent = `${Number(it.quantity || 0).toLocaleString()}주 ${it.quantityBreakdown ? '(' + it.quantityBreakdown + ')' : ''}`;
+
+      document.getElementById('sheetCurrentPrice').textContent = isUs ? `$${(it.lastPrice || 0).toFixed(2)} (${fmtKrw(curPrice)})` : fmtKrw(curPrice);
+      document.getElementById('sheetAvgPrice').textContent = isUs ? `$${(it.averagePurchasePrice || 0).toFixed(2)} (${fmtKrw(avgPrice)})` : fmtKrw(avgPrice);
+      document.getElementById('sheetPurchaseAmount').textContent = fmtKrw(purAmt);
+      document.getElementById('sheetMarketValue').textContent = fmtKrw(mv);
+
+      const plEl = document.getElementById('sheetProfit');
+      plEl.textContent = fmtKrw(profit, true);
+      plEl.style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+
+      const rateEl = document.getElementById('sheetProfitRate');
+      rateEl.textContent = fmtPct(rate);
+      rateEl.style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+
+      document.getElementById('sheetOverlay').classList.add('active');
+    }
+
+    function closeStockSheet() {
+      document.getElementById('sheetOverlay').classList.remove('active');
+    }
+
+    // 탭 전환 (보유 종목 vs 투자 분석 차트 vs 구간별 수익률)
+    function switchMobileTab(tab) {
+      state.activeTab = tab;
+      document.getElementById('mTabBtnHoldings').classList.toggle('active', tab === 'holdings');
+      document.getElementById('mTabBtnCharts').classList.toggle('active', tab === 'charts');
+      document.getElementById('mTabBtnHistory').classList.toggle('active', tab === 'history');
+      document.getElementById('mSectionHoldings').style.display = tab === 'holdings' ? 'block' : 'none';
+      document.getElementById('mSectionCharts').style.display = tab === 'charts' ? 'flex' : 'none';
+      document.getElementById('mSectionHistory').style.display = tab === 'history' ? 'flex' : 'none';
+
+      if (tab === 'charts') {
+        setTimeout(renderMobileCharts, 50);
+      } else if (tab === 'history') {
+        if (!state.historyData) {
+          fetchReturnsHistory();
+        } else {
+          setTimeout(renderMobileHistory, 50);
+        }
+      }
+    }
+
+    // 모바일 차트 3종 통합 렌더링
+    function renderMobileCharts() {
+      if (!state.dashboard || state.activeTab !== 'charts') return;
+      renderMobileWeightChart();
+      renderMobileProfitChart();
+      renderMobileCompareChart();
+    }
+
+    // 차트 1: 포트폴리오 종목 비중 (도넛 + TOP 5 리스트)
+    function renderMobileWeightChart() {
+      const items = [...(state.dashboard?.items || [])];
+      const isPur = state.weightMode === 'purchase';
+      const sorted = items.sort((a, b) =>
+        isPur ? (b.purchaseAmountKrw - a.purchaseAmountKrw) : (b.marketValueKrw - a.marketValueKrw)
+      );
+
+      const ctx = document.getElementById('mWeightChart');
+      if (!ctx) return;
+      if (chartWeightInst) chartWeightInst.destroy();
+
+      chartWeightInst = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: sorted.map(i => i.name),
+          datasets: [{
+            data: sorted.map(i => Math.round(isPur ? i.purchaseAmountKrw : i.marketValueKrw)),
+            backgroundColor: sorted.map((_, idx) => palette[idx % palette.length]),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (c) => {
+                  const it = sorted[c.dataIndex];
+                  const pct = isPur ? it.weightByPurchasePct : it.weightByMarketValuePct;
+                  return `${it.name}: ${fmtKrw(c.raw)} (${(pct || 0).toFixed(1)}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // TOP 5 랭킹 리스트
+      const top5 = sorted.slice(0, 5);
+      const listEl = document.getElementById('mTopWeightList');
+      if (listEl) {
+        listEl.innerHTML = top5.map((it, idx) => {
+          const color = palette[idx % palette.length];
+          const val = isPur ? it.purchaseAmountKrw : it.marketValueKrw;
+          const pct = isPur ? it.weightByPurchasePct : it.weightByMarketValuePct;
+          return `
+            <div class="top-weight-item">
+              <div class="top-weight-left">
+                <div class="top-weight-dot" style="background: ${color};"></div>
+                <span class="top-weight-name">${it.name}</span>
+              </div>
+              <span class="top-weight-val">${fmtKrw(val)} (${(pct || 0).toFixed(1)}%)</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // 차트 2: 종목별 수익금 기여도 (수평 바)
+    function renderMobileProfitChart() {
+      const items = [...(state.dashboard?.items || [])];
+      const isRate = state.profitMode === 'rate';
+      const sorted = items.sort((a, b) =>
+        isRate ? (b.returnRatePct - a.returnRatePct) : (b.profitLossKrw - a.profitLossKrw)
+      );
+
+      const labels = sorted.map(i => i.name);
+      const data = sorted.map(i => isRate ? Number((i.returnRatePct || 0).toFixed(2)) : Math.round(i.profitLossKrw || 0));
+      const colors = data.map(v => v >= 0 ? 'rgba(240, 68, 82, 0.85)' : 'rgba(49, 130, 246, 0.85)');
+
+      const titleEl = document.getElementById('mProfitTitle');
+      if (titleEl) {
+        titleEl.textContent = isRate ? '종목별 수익률(%) 순위' : '종목별 수익금 기여도';
+      }
+
+      const ctx = document.getElementById('mProfitChart');
+      if (!ctx) return;
+      if (chartProfitInst) chartProfitInst.destroy();
+
+      chartProfitInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: isRate ? '수익률 (%)' : '평가 손익',
+            data: data,
+            backgroundColor: colors,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (c) => {
+                  const it = sorted[c.dataIndex];
+                  return `손익: ${fmtKrw(it.profitLossKrw, true)} (${fmtPct(it.returnRatePct)})`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                callback: (val) => isRate ? `${val}%` : (val / 10000).toLocaleString() + '만',
+                font: { size: 10 }
+              },
+              grid: { color: '#f2f4f6' }
+            },
+            y: {
+              grid: { display: false },
+              ticks: {
+                autoSkip: false,
+                font: { family: 'Pretendard', weight: '600', size: 11 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 차트 3: 종목별 매수원금 vs 평가금액 (비교 바)
+    function renderMobileCompareChart() {
+      const items = [...(state.dashboard?.items || [])];
+      // 평가금액 기준 상위 7개 종목
+      const topItems = items.sort((a, b) => (b.marketValueKrw || 0) - (a.marketValueKrw || 0)).slice(0, 7);
+
+      const labels = topItems.map(i => i.name);
+      const purchaseData = topItems.map(i => Math.round(i.purchaseAmountKrw || 0));
+      const mvData = topItems.map(i => Math.round(i.marketValueKrw || 0));
+
+      const ctx = document.getElementById('mCompareChart');
+      if (!ctx) return;
+      if (chartCompareInst) chartCompareInst.destroy();
+
+      chartCompareInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '매수 원금',
+              data: purchaseData,
+              backgroundColor: 'rgba(107, 118, 132, 0.45)',
+              borderColor: 'rgba(107, 118, 132, 0.9)',
+              borderWidth: 1,
+              borderRadius: 4,
+              pointStyle: 'line'
+            },
+            {
+              label: '현재 평가금액',
+              data: mvData,
+              backgroundColor: '#f04452',
+              borderColor: '#f04452',
+              borderWidth: 1,
+              borderRadius: 4,
+              pointStyle: 'line'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'line',
+                pointStyleWidth: 24,
+                boxWidth: 24,
+                font: { family: 'Pretendard', size: 11 },
+                generateLabels: (chart) => {
+                  const defaultLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                  return defaultLabels.map((item) => {
+                    item.pointStyle = 'line';
+                    item.lineWidth = 3;
+                    if (item.datasetIndex === 0) item.strokeStyle = 'rgba(107, 118, 132, 1)';
+                    else if (item.datasetIndex === 1) item.strokeStyle = '#f04452';
+                    return item;
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (c) => `${c.dataset.label}: ${fmtKrw(c.raw)}`,
+                afterBody: (itemsTooltip) => {
+                  const it = topItems[itemsTooltip[0].dataIndex];
+                  return `손익: ${fmtKrw(it.profitLossKrw, true)} (${fmtPct(it.returnRatePct)})`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback: (val) => (val / 10000).toLocaleString() + '만',
+                font: { size: 10 }
+              },
+              grid: { color: '#f2f4f6' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: {
+                autoSkip: false,
+                maxRotation: 35,
+                minRotation: 0,
+                font: { family: 'Pretendard', weight: '600', size: 10.5 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ==========================================
+    // 3-C. 구간별 수익률 변화 히스토리 로직
+    // ==========================================
+    async function fetchReturnsHistory(forceRefresh = false) {
+      const mySeq = ++historyReqSeq;
+      const listEl = document.getElementById('mHistTimelineList');
+      if (!state.historyData && listEl) {
+        listEl.innerHTML = `
+          <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
+            구간별 수익률 데이터를 분석 중입니다...
+          </div>
+        `;
+      }
+      try {
+        const qs = new URLSearchParams({
+          scope: state.scope,
+          pages: '4',
+          _t: String(Date.now())
+        });
+        if (forceRefresh) qs.set('refresh', '1');
+
+        const resp = await fetch(`/api/returns-history?${qs.toString()}`, {
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        const data = await resp.json();
+        if (mySeq !== historyReqSeq) return;
+        if (!resp.ok || data.error) {
+          throw new Error(data.error || '시계열 데이터 조회 실패');
+        }
+        state.historyData = data;
+        renderMobileHistory();
+      } catch (err) {
+        if (mySeq !== historyReqSeq) return;
+        console.error(err);
+        if (listEl) {
+          listEl.innerHTML = `
+            <div style="text-align: center; padding: 24px 0; color: var(--up-red); font-size: 13px;">
+              조회 실패: ${err.message}
+            </div>
+          `;
+        }
+      }
+    }
+
+    function renderMobileHistory() {
+      if (!state.historyData || state.activeTab !== 'history') return;
+
+      const unit = state.historyUnit; // 'daily' | 'monthly' | 'yearly'
+      let series = [...(state.historyData[unit] || [])];
+
+      if (series.length > 0) {
+        const lastItem = series[series.length - 1];
+        const lastDate = new Date(lastItem.period);
+
+        if (unit === 'daily' && state.historyDays < 9999) {
+          const cutoff = new Date(lastDate);
+          cutoff.setDate(cutoff.getDate() - state.historyDays);
+          const cutoffStr = cutoff.toISOString().slice(0, 10);
+          const filtered = series.filter(r => r.period >= cutoffStr);
+          if (filtered.length > 0) series = filtered;
+        } else if (unit === 'monthly') {
+          if (state.historyMonths === 'YTD') {
+            const curYearPrefix = `${new Date().getFullYear()}-`;
+            const ytdFiltered = series.filter(r => String(r.period).startsWith(curYearPrefix));
+            if (ytdFiltered.length > 0) series = ytdFiltered;
+          } else {
+            const mCount = Number(state.historyMonths || 9999);
+            if (mCount < 9999) {
+              const cutoff = new Date(lastDate);
+              cutoff.setMonth(cutoff.getMonth() - mCount);
+              const cutoffStr = cutoff.toISOString().slice(0, 7);
+              const filtered = series.filter(r => r.period >= cutoffStr);
+              if (filtered.length > 0) series = filtered;
+            }
+          }
+        }
+      }
+
+      const listEl = document.getElementById('mHistTimelineList');
+      if (series.length === 0) {
+        if (listEl) {
+          listEl.innerHTML = `
+            <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
+              표시할 구간 데이터가 없습니다.
+            </div>
+          `;
+        }
+        return;
+      }
+
+      const first = series[0];
+      const last = series[series.length - 1];
+
+      // 구간 손익 및 수익률 (선택 구간 동안 발생한 실질 손익 및 자산 증가율)
+      const periodProfitDiff = (last.profitLossKrw || 0) - (first.profitLossKrw || 0);
+      const startMv = first.marketValueKrw || 0;
+      const endMv = last.marketValueKrw || 0;
+      const periodGainPct = startMv > 0 ? ((endMv - startMv) / startMv * 100) : 0;
+      const periodRateDiffPct = (last.returnRatePct || 0) - (first.returnRatePct || 0);
+
+      const peak = series.reduce((max, r) => ((r.returnRatePct || 0) > (max.returnRatePct || 0) ? r : max), series[0]);
+      const trough = series.reduce((min, r) => ((r.returnRatePct || 0) < (min.returnRatePct || 0) ? r : min), series[0]);
+
+      // KPI 카드 4개 업데이트
+      const badgePeriod = document.getElementById('mHistPeriodBadge');
+      if (badgePeriod) {
+        const uText = unit === 'daily' ? '일별' : (unit === 'monthly' ? '월별' : '연도별');
+        badgePeriod.textContent = `${uText} · 총 ${series.length}개 구간`;
+      }
+
+      // 구간 수익률 & 손익 증감
+      const kpiStartEnd = document.getElementById('mHistKpiStartEnd');
+      const kpiStartEndSub = document.getElementById('mHistKpiStartEndSub');
+      if (kpiStartEnd) {
+        kpiStartEnd.textContent = `${fmtKrw(periodProfitDiff, true)} (${periodGainPct >= 0 ? '+' : ''}${periodGainPct.toFixed(1)}%)`;
+        kpiStartEnd.className = `m-kpi-val ${signClass(periodProfitDiff)}`;
+      }
+      if (kpiStartEndSub) {
+        kpiStartEndSub.textContent = `시작 ${first.period.slice(2)} (${fmtKrw(startMv)}) 대비`;
+      }
+
+      // 최근 구간 변동
+      const kpiDelta = document.getElementById('mHistKpiLatestDelta');
+      const kpiDeltaSub = document.getElementById('mHistKpiLatestDeltaSub');
+      if (kpiDelta) {
+        kpiDelta.textContent = fmtKrw(last.periodProfitChangeKrw, true);
+        kpiDelta.className = `m-kpi-val ${signClass(last.periodProfitChangeKrw)}`;
+      }
+      if (kpiDeltaSub) {
+        const diffSign = (last.periodRateDiffPct || 0) >= 0 ? '+' : '';
+        kpiDeltaSub.textContent = `직전 대비 ${diffSign}${(last.periodRateDiffPct || 0).toFixed(1)}%p`;
+      }
+
+      // 최고 (Peak)
+      const kpiPeak = document.getElementById('mHistKpiPeak');
+      const kpiPeakSub = document.getElementById('mHistKpiPeakSub');
+      if (kpiPeak) {
+        kpiPeak.textContent = `${fmtPct(peak.returnRatePct)}`;
+        kpiPeak.className = `m-kpi-val ${signClass(peak.profitLossKrw)}`;
+      }
+      if (kpiPeakSub) {
+        kpiPeakSub.textContent = `최고 ${peak.period.slice(2)} (${fmtKrw(peak.profitLossKrw, true)})`;
+      }
+
+      // 최저 (Trough)
+      const kpiTrough = document.getElementById('mHistKpiTrough');
+      const kpiTroughSub = document.getElementById('mHistKpiTroughSub');
+      if (kpiTrough) {
+        kpiTrough.textContent = `${fmtPct(trough.returnRatePct)}`;
+        kpiTrough.className = `m-kpi-val ${signClass(trough.profitLossKrw)}`;
+      }
+      if (kpiTroughSub) {
+        kpiTroughSub.textContent = `최저 ${trough.period.slice(2)} (${fmtKrw(trough.profitLossKrw, true)})`;
+      }
+
+      // 제목 업데이트
+      const uLabel = unit === 'daily' ? '일별' : (unit === 'monthly' ? '월별' : '연도별');
+      const titleMap = {
+        rate: `${uLabel} 누적 수익률(%) 추이`,
+        profit: `${uLabel} 누적 수익금(원) 추이`,
+        value: `${uLabel} 총 평가금액 vs 매수원금`
+      };
+      const titleEl = document.getElementById('mHistMainChartTitle');
+      if (titleEl) titleEl.textContent = titleMap[state.historyMetric] || `${uLabel} 누적 수익률(%) 추이`;
+
+      const barTitleEl = document.getElementById('mHistBarChartTitle');
+      if (barTitleEl) barTitleEl.textContent = `${uLabel} 손익 증감 (직전 ${uLabel.replace('별', '')} 대비)`;
+
+      // 차트 2종 및 타임라인 리스트 렌더링
+      renderMobileHistoryReturnChart(series, unit);
+      renderMobileHistoryDeltaChart(series, unit);
+      renderMobileHistoryTimeline(series, unit);
+    }
+
+    function renderMobileHistoryReturnChart(series, unit) {
+      const ctx = document.getElementById('mHistoryReturnChart');
+      if (!ctx) return;
+      if (mHistoryReturnChartInst) mHistoryReturnChartInst.destroy();
+
+      const last = series[series.length - 1];
+      const isPositive = (last.profitLossKrw || 0) >= 0;
+      const mainColor = isPositive ? '#f04452' : '#3182f6';
+      const bgColor = isPositive ? 'rgba(240, 68, 82, 0.12)' : 'rgba(49, 130, 246, 0.12)';
+      const metric = state.historyMetric;
+
+      const labels = series.map(r => (unit === 'daily' ? r.period.slice(5) : r.period));
+      let datasets = [];
+      let yAxisCallback = null;
+
+      if (metric === 'rate') {
+        datasets = [{
+          label: '누적 수익률 (%)',
+          data: series.map(r => r.returnRatePct),
+          borderColor: mainColor,
+          backgroundColor: bgColor,
+          borderWidth: 2.2,
+          pointRadius: series.length > 35 ? 0 : 2.5,
+          pointHoverRadius: 5,
+          pointStyle: 'line',
+          fill: true,
+          tension: 0.22
+        }];
+        yAxisCallback = (val) => `${val}%`;
+      } else if (metric === 'profit') {
+        datasets = [{
+          label: '누적 수익금 (원)',
+          data: series.map(r => r.profitLossKrw),
+          borderColor: mainColor,
+          backgroundColor: bgColor,
+          borderWidth: 2.2,
+          pointRadius: series.length > 35 ? 0 : 2.5,
+          pointHoverRadius: 5,
+          pointStyle: 'line',
+          fill: true,
+          tension: 0.22
+        }];
+        yAxisCallback = (val) => {
+          if (Math.abs(val) >= 100000000) return (val / 100000000).toFixed(1) + '억';
+          return (val / 10000).toLocaleString() + '만';
+        };
+      } else {
+        datasets = [
+          {
+            label: '총 평가금액',
+            data: series.map(r => r.marketValueKrw),
+            borderColor: mainColor,
+            backgroundColor: bgColor,
+            borderWidth: 2.2,
+            pointRadius: series.length > 35 ? 0 : 2.5,
+            pointHoverRadius: 5,
+            pointStyle: 'line',
+            fill: true,
+            tension: 0.22
+          },
+          {
+            label: '총 매수원금',
+            data: series.map(r => r.purchaseAmountKrw),
+            borderColor: '#4e5968',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 0,
+            pointStyle: 'line',
+            fill: false
+          }
+        ];
+        yAxisCallback = (val) => {
+          if (val >= 100000000) return (val / 100000000).toFixed(1) + '억';
+          return (val / 10000).toLocaleString() + '만';
+        };
+      }
+
+      mHistoryReturnChartInst = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              display: metric === 'value',
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                pointStyle: 'line',
+                boxWidth: 20,
+                font: { family: 'Pretendard', size: 11 }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: (items) => series[items[0].dataIndex].period,
+                label: (c) => {
+                  const row = series[c.dataIndex];
+                  if (c.datasetIndex === 1 && metric === 'value') {
+                    return `매수원금: ${fmtKrw(row.purchaseAmountKrw)}`;
+                  }
+                  if (metric === 'value') {
+                    return `평가금액: ${fmtKrw(row.marketValueKrw)} (${fmtPct(row.returnRatePct)})`;
+                  }
+                  return `누적 손익: ${fmtKrw(row.profitLossKrw, true)} (${fmtPct(row.returnRatePct)})`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                maxTicksLimit: 6,
+                font: { family: 'Pretendard', size: 10.5, weight: '500' }
+              }
+            },
+            y: {
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: {
+                font: { family: 'Pretendard', size: 10.5 },
+                callback: yAxisCallback
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderMobileHistoryDeltaChart(series, unit) {
+      const ctx = document.getElementById('mHistoryDeltaChart');
+      if (!ctx) return;
+      if (mHistoryDeltaChartInst) mHistoryDeltaChartInst.destroy();
+
+      const isDiff = state.historyDelta === 'rateDiff';
+      const labels = series.map(r => (unit === 'daily' ? r.period.slice(5) : r.period));
+      const dataVals = series.map(r => (isDiff ? r.periodRateDiffPct : r.periodProfitChangeKrw));
+      const bgColors = dataVals.map(v => (v >= 0 ? '#f04452' : '#3182f6'));
+
+      mHistoryDeltaChartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: isDiff ? '수익률 변화 (%p)' : '손익 증감 (원)',
+            data: dataVals,
+            backgroundColor: bgColors,
+            borderRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => series[items[0].dataIndex].period,
+                label: (c) => {
+                  const row = series[c.dataIndex];
+                  if (isDiff) {
+                    const sign = (row.periodRateDiffPct || 0) >= 0 ? '+' : '';
+                    return `수익률 변화: ${sign}${(row.periodRateDiffPct || 0).toFixed(2)}%p`;
+                  }
+                  return `손익 증감: ${fmtKrw(row.periodProfitChangeKrw, true)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                maxTicksLimit: 6,
+                font: { family: 'Pretendard', size: 10.5, weight: '500' }
+              }
+            },
+            y: {
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: {
+                font: { family: 'Pretendard', size: 10.5 },
+                callback: (val) => {
+                  if (isDiff) return `${val}%p`;
+                  if (Math.abs(val) >= 100000000) return (val / 100000000).toFixed(1) + '억';
+                  return (val / 10000).toLocaleString() + '만';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderMobileHistoryTimeline(series, unit) {
+      const container = document.getElementById('mHistTimelineList');
+      const badgeCount = document.getElementById('mHistCountBadge');
+      const loadMoreBtn = document.getElementById('mHistLoadMoreBtn');
+      const moreCountEl = document.getElementById('mHistMoreCount');
+      if (!container) return;
+
+      const reversed = [...series].reverse();
+      if (badgeCount) badgeCount.textContent = `${reversed.length}건`;
+
+      const visible = reversed.slice(0, state.historyVisibleCount);
+
+      container.innerHTML = visible.map(r => {
+        const isUp = (r.returnRatePct || 0) >= 0;
+        const rateSign = isUp ? '+' : '';
+        const badgeCls = isUp ? 'up' : 'down';
+        const deltaVal = r.periodProfitChangeKrw || 0;
+        const deltaCls = deltaVal > 0 ? 'var(--up-red)' : (deltaVal < 0 ? 'var(--down-blue)' : 'var(--text-muted)');
+        const deltaDiffSign = (r.periodRateDiffPct || 0) >= 0 ? '+' : '';
+
+        return `
+          <div class="m-hist-item">
+            <div class="m-hist-row-top">
+              <span class="m-hist-period">${r.period}</span>
+              <span class="m-hist-badge ${badgeCls}">${rateSign}${(r.returnRatePct || 0).toFixed(2)}%</span>
+            </div>
+            <div class="m-hist-row-mid">
+              <span style="color: var(--text-muted);">평가금액 <strong>${fmtKrw(r.marketValueKrw)}</strong></span>
+              <span>누적 손익 <strong class="${signClass(r.profitLossKrw)}">${fmtKrw(r.profitLossKrw, true)}</strong></span>
+            </div>
+            <div class="m-hist-row-bot">
+              <span>원금 ${fmtKrw(r.purchaseAmountKrw)}</span>
+              <span style="color: ${deltaCls}; font-weight: 600;">
+                직전 대비 ${fmtKrw(deltaVal, true)} (${deltaDiffSign}${(r.periodRateDiffPct || 0).toFixed(2)}%p)
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const remaining = reversed.length - state.historyVisibleCount;
+      if (loadMoreBtn && moreCountEl) {
+        if (remaining > 0) {
+          loadMoreBtn.style.display = 'block';
+          moreCountEl.textContent = remaining;
+          loadMoreBtn.onclick = () => {
+            state.historyVisibleCount += 25;
+            renderMobileHistoryTimeline(series, unit);
+          };
+        } else {
+          loadMoreBtn.style.display = 'none';
+        }
+      }
+    }
+
+    // 이벤트 리스너 등록
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. 초기 데이터 로드
+      loadData();
+
+      // 2. 새로고침 버튼
+      document.getElementById('btnRefresh').addEventListener('click', () => loadData(true));
+
+      // 3. 계좌 범위 칩 클릭
+      document.getElementById('scopeChips').addEventListener('click', (e) => {
+        const chip = e.target.closest('.scope-chip');
+        if (!chip) return;
+
+        document.querySelectorAll('.scope-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        state.scope = chip.dataset.scope;
+        document.getElementById('footerScopeText').textContent = `${chip.textContent} 조회 중`;
+        loadData(false);
+      });
+
+      // 4. 세그먼트 탭 전환 (보유 종목 vs 차트 vs 구간 수익률)
+      document.getElementById('mTabBtnHoldings').addEventListener('click', () => switchMobileTab('holdings'));
+      document.getElementById('mTabBtnCharts').addEventListener('click', () => switchMobileTab('charts'));
+      document.getElementById('mTabBtnHistory').addEventListener('click', () => switchMobileTab('history'));
+
+      // 4-1. 구간 히스토리 단위 선택 (일별, 월별, 연도별)
+      const unitWrap = document.getElementById('mHistUnitChips');
+      if (unitWrap) {
+        unitWrap.addEventListener('click', (e) => {
+          const chip = e.target.closest('.m-hist-chip');
+          if (!chip) return;
+          unitWrap.querySelectorAll('.m-hist-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.historyUnit = chip.dataset.unit;
+          state.historyVisibleCount = 15;
+
+          const dailyRange = document.getElementById('mHistDailyRange');
+          const monthlyRange = document.getElementById('mHistMonthlyRange');
+          if (dailyRange) dailyRange.style.display = state.historyUnit === 'daily' ? 'flex' : 'none';
+          if (monthlyRange) monthlyRange.style.display = state.historyUnit === 'monthly' ? 'flex' : 'none';
+
+          renderMobileHistory();
+        });
+      }
+
+      // 4-2. 일별 조회 기간 선택
+      const dailyWrap = document.getElementById('mHistDailyRange');
+      if (dailyWrap) {
+        dailyWrap.addEventListener('click', (e) => {
+          const chip = e.target.closest('.m-hist-range-chip');
+          if (!chip) return;
+          dailyWrap.querySelectorAll('.m-hist-range-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.historyDays = Number(chip.dataset.days);
+          state.historyVisibleCount = 15;
+          renderMobileHistory();
+        });
+      }
+
+      // 4-3. 월별 조회 기간 선택
+      const monthlyWrap = document.getElementById('mHistMonthlyRange');
+      if (monthlyWrap) {
+        monthlyWrap.addEventListener('click', (e) => {
+          const chip = e.target.closest('.m-hist-range-chip');
+          if (!chip) return;
+          monthlyWrap.querySelectorAll('.m-hist-range-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.historyMonths = chip.dataset.months;
+          state.historyVisibleCount = 15;
+          renderMobileHistory();
+        });
+      }
+
+      // 4-4. 누적 차트 지표 선택 (수익률, 수익금, 자산vs원금)
+      const metricWrap = document.getElementById('mHistMetricToggles');
+      if (metricWrap) {
+        metricWrap.addEventListener('click', (e) => {
+          const btn = e.target.closest('.m-toggle-btn');
+          if (!btn) return;
+          metricWrap.querySelectorAll('.m-toggle-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.historyMetric = btn.dataset.metric;
+          const uLabel = state.historyUnit === 'daily' ? '일별' : (state.historyUnit === 'monthly' ? '월별' : '연도별');
+          const titleMap = {
+            rate: `${uLabel} 누적 수익률(%) 추이`,
+            profit: `${uLabel} 누적 수익금(원) 추이`,
+            value: `${uLabel} 총 평가금액 vs 매수원금`
+          };
+          const titleEl = document.getElementById('mHistMainChartTitle');
+          if (titleEl) titleEl.textContent = titleMap[state.historyMetric] || `${uLabel} 누적 수익률(%) 추이`;
+          renderMobileHistory();
+        });
+      }
+
+      // 4-5. 구간 변동 차트 지표 선택 (증감액, 수익률변화)
+      const deltaWrap = document.getElementById('mHistDeltaToggles');
+      if (deltaWrap) {
+        deltaWrap.addEventListener('click', (e) => {
+          const btn = e.target.closest('.m-toggle-btn');
+          if (!btn) return;
+          deltaWrap.querySelectorAll('.m-toggle-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.historyDelta = btn.dataset.delta;
+          renderMobileHistory();
+        });
+      }
+
+      // 5. 차트 내부 토글 버튼들
+      document.getElementById('btnWeightMv').addEventListener('click', () => {
+        state.weightMode = 'mv';
+        document.getElementById('btnWeightMv').classList.add('active');
+        document.getElementById('btnWeightPur').classList.remove('active');
+        renderMobileWeightChart();
+      });
+      document.getElementById('btnWeightPur').addEventListener('click', () => {
+        state.weightMode = 'purchase';
+        document.getElementById('btnWeightPur').classList.add('active');
+        document.getElementById('btnWeightMv').classList.remove('active');
+        renderMobileWeightChart();
+      });
+
+      document.getElementById('btnProfitAmt').addEventListener('click', () => {
+        state.profitMode = 'amt';
+        document.getElementById('btnProfitAmt').classList.add('active');
+        document.getElementById('btnProfitRate').classList.remove('active');
+        renderMobileProfitChart();
+      });
+      document.getElementById('btnProfitRate').addEventListener('click', () => {
+        state.profitMode = 'rate';
+        document.getElementById('btnProfitRate').classList.add('active');
+        document.getElementById('btnProfitAmt').classList.remove('active');
+        renderMobileProfitChart();
+      });
+
+      // 6. 종목 검색
+      document.getElementById('stockSearch').addEventListener('input', (e) => {
+        state.searchKeyword = e.target.value;
+        renderHoldings();
+      });
+
+      // 7. 정렬 변경
+      document.getElementById('stockSort').addEventListener('change', (e) => {
+        state.sortKey = e.target.value;
+        renderHoldings();
+      });
+
+      // 8. 바텀시트 닫기
+      document.getElementById('sheetCloseBtn').addEventListener('click', closeStockSheet);
+      document.getElementById('sheetOverlay').addEventListener('click', (e) => {
+        if (e.target.id === 'sheetOverlay') closeStockSheet();
+      });
+
+      // 9. PC 모드 전환 시 선호도 저장
+      const setPcPref = () => {
+        try { sessionStorage.setItem('preferred_view', 'pc'); } catch (e) {}
+      };
+      const pcH = document.getElementById('btnGoPcHeader');
+      if (pcH) pcH.addEventListener('click', setPcPref);
+      const pcF = document.getElementById('btnGoPcFooter');
+      if (pcF) pcF.addEventListener('click', setPcPref);
+
+      // 10. 국내상장 해외추종 ETF 분류 토글
+      const etfToggle = document.getElementById('mOverseasEtfToggle');
+      if (etfToggle) {
+        etfToggle.checked = state.overseasEtfAsUs;
+        etfToggle.addEventListener('change', (e) => {
+          state.overseasEtfAsUs = e.target.checked;
+          renderDistribution();
+          if (state.activeTab === 'holdings') {
+            renderHoldings();
+          } else {
+            renderMobileCharts();
+          }
+          showToast(state.overseasEtfAsUs ? '해외추종 ETF를 해외주식으로 분류합니다' : '기본 통화/국가 기준으로 분류합니다');
+        });
+      }
+
+      // 11. PWA Service Worker 등록 및 설치 프롬프트
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
+          .then((reg) => {})
+          .catch((err) => {
+            console.warn('모바일 PWA SW 등록 실패:', err);
+          });
+      }
+
+      let deferredMobilePrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredMobilePrompt = e;
+        const pwaBtn = document.getElementById('btnInstallPwaMobile');
+        if (pwaBtn) {
+          pwaBtn.style.display = 'inline-flex';
+          pwaBtn.onclick = async () => {
+            if (deferredMobilePrompt) {
+              deferredMobilePrompt.prompt();
+              const { outcome } = await deferredMobilePrompt.userChoice;
+              if (outcome === 'accepted') {
+                pwaBtn.style.display = 'none';
+              }
+              deferredMobilePrompt = null;
+            }
+          };
+        }
+      });
+
+      window.addEventListener('appinstalled', () => {
+        const pwaBtn = document.getElementById('btnInstallPwaMobile');
+        if (pwaBtn) pwaBtn.style.display = 'none';
+        deferredMobilePrompt = null;
+      });
+    });
+  </script>
+</body>
+</html>

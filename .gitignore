@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+capital_ledger.json
+kis_tokens.json
+candles_cache.json
+universe_cache.json
+ria_holdings.json
+*.log
+.DS_Store

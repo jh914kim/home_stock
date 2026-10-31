@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>통합 주식 계좌 리포트</title>
+  <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+  <meta name="theme-color" content="#1e293b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="주식리포트" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%231e293b'/%3E%3Cstop offset='100%25' stop-color='%233182f6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='10' fill='url(%23g)'/%3E%3Cpath d='M7 29.5L15.5 20.5L22.5 24.2L33.5 11.5V29.5H7Z' fill='rgba(255,255,255,0.22)'/%3E%3Cpath d='M7 29.5L15.5 20.5L22.5 24.2L33.5 11.5' stroke='%23ffffff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='33.5' cy='11.5' r='3.6' fill='%23ff4d5e' stroke='%23ffffff' stroke-width='1.8'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/styles.css?v=20261031_13" />
+  <script>
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("view") === "pc") {
+          sessionStorage.setItem("preferred_view", "pc");
+          return;
+        }
+        if (sessionStorage.getItem("preferred_view") === "pc") {
+          return;
+        }
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        var isSmallScreen = window.innerWidth <= 768;
+        if (isMobile || isSmallScreen) {
+          window.location.replace("/mobile");
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <!-- 상단 네비게이션 바 -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-logo" id="brandLogoBtn" role="button" tabindex="0" title="클릭하여 실시간 시세 및 잔고 새로고침" aria-label="실시간 시세 새로고침">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path class="logo-chart-area" d="M3 18.5L8.5 12.5L13 15L20.5 6.5V18.5H3Z" fill="rgba(255,255,255,0.22)"/>
+            <path class="logo-chart-line" pathLength="100" d="M3 18.5L8.5 12.5L13 15L20.5 6.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle class="logo-chart-dot" cx="20.5" cy="6.5" r="2.6" fill="#ff4d5e" stroke="#ffffff" stroke-width="1.4"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">통합 주식 계좌 리포트</h1>
+          <p class="brand-sub" id="accountInfoText">계좌 정보를 불러오는 중...</p>
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+        <!-- 계좌 범위 필터 (전체 통합 / 토스 종합매매 / 토스 RIA / 한국투자 4계좌) -->
+        <div class="scope-pills" id="accountScopePills" title="조회할 계좌 범위를 선택합니다">
+          <button class="scope-pill active" data-scope="ALL">전체 합산 <span id="scopeCountAll">0</span></button>
+          <button class="scope-pill" data-scope="BROKERAGE">토스 종합 <span id="scopeCountBrokerage">0</span></button>
+          <button class="scope-pill" data-scope="RIA">토스 RIA <span id="scopeCountRia">0</span></button>
+          <button class="scope-pill" data-scope="KIS_1">한투 연금저축 <span id="scopeCountKis1">0</span></button>
+          <button class="scope-pill" data-scope="KIS_2">한투 ISA <span id="scopeCountKis2">0</span></button>
+          <button class="scope-pill" data-scope="KIS_3">한투 IRP <span id="scopeCountKis3">0</span></button>
+          <button class="scope-pill" data-scope="KIS_4">한투 위탁 <span id="scopeCountKis4">0</span></button>
+        </div>
+
+        <div class="fx-badge" id="fxBadge" title="실시간 USD/KRW 참고 환율 (토스증권 API)">
+          <span class="fx-dot"></span>
+          <span id="fxText">환율 로딩중...</span>
+        </div>
+
+        <div class="toggle-group" title="수수료 및 제세금을 차감한 순수익 기준으로 볼지 선택합니다">
+          <label class="switch-label">
+            <input type="checkbox" id="afterCostToggle" />
+            <span class="slider"></span>
+            <span class="switch-text">수수료·세금 차감 후 순수익</span>
+          </label>
+        </div>
+
+        <div class="toggle-group" title="해외주식(USD) 금액을 실시간 환율로 환산해 원화(원)로 통일해서 볼지 선택합니다">
+          <label class="switch-label">
+            <input type="checkbox" id="krwUnifiedToggle" checked />
+            <span class="slider"></span>
+            <span class="switch-text">해외주식 원화(₩) 환산 표시</span>
+          </label>
+        </div>
+
+        <button class="topbar-icon-btn" id="btnInstallPwa" title="크롬 앱 설치 (PWA)" aria-label="앱 설치" style="display: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+
+        <a href="/mobile" class="topbar-icon-btn" id="btnGoMobile" title="모바일 전용 화면으로 전환" aria-label="모바일 뷰 전환">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="3" ry="3"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </a>
+
+        <button class="btn-refresh" id="refreshBtn" title="실시간 잔고 새로고침">
+          <svg class="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5"/>
+          </svg>
+          <span id="refreshBtnText">새로고침</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 에러 배너 -->
+    <div id="errorBanner" class="error-banner hidden"></div>
+
+    <!-- 탭 메뉴 -->
+    <div class="main-tabs">
+      <button class="main-tab active" data-tab="portfolio">투자 대시보드</button>
+      <button class="main-tab" data-tab="history">구간별 수익률</button>
+      <button class="main-tab" data-tab="capital">순수 투자금 관리</button>
+      <button class="main-tab" data-tab="ria">RIA 종목 관리 <span class="tab-badge" id="riaTabBadge">0</span></button>
+      <button class="main-tab" data-tab="orders">주문·체결 내역</button>
+    </div>
+
+    <!-- 탭 1: 포트폴리오 대시보드 -->
+    <section id="tab-portfolio" class="tab-panel active">
+      <!-- 핵심 투자 성과 히어로 섹션 -->
+      <div class="hero-grid">
+        <div class="card hero-main-card">
+          <div class="hero-header">
+            <div>
+              <span class="badge-pill" id="heroScopeBadge">전체 투자 성적표 (원화 환산 통합)</span>
+              <h2 class="hero-Question">내가 총 얼마를 투자했고, 얼마나 벌었을까?</h2>
+            </div>
+            <span class="update-time" id="lastUpdatedText">-</span>
+          </div>
+
+          <div class="hero-kpi-row">
+            <div class="kpi-box pure-capital-box" id="heroPureCapitalBox" role="button" tabindex="0" title="클릭하여 순수 투자 원금 상세 및 입출금 관리 탭으로 이동">
+              <div class="kpi-label" title="키움+토스+한투 실제 입금 현금">순수 투자 원금 (실입금)</div>
+              <div class="kpi-value highlight-pure" id="heroPureCapitalKrw">-</div>
+              <div class="kpi-sub" id="heroPureCapitalSub">키움+토스+한투 순현금 ↗</div>
+            </div>
+
+            <div class="kpi-box purchase-box">
+              <div class="kpi-label" title="매매 체결된 총 매수 원금 (재투자금 포함)">총 매수 원금 (재투자 포함)</div>
+              <div class="kpi-value" id="totalPurchaseKrw">-</div>
+              <div class="kpi-sub" id="totalPurchaseBreakdown">국내 - + 해외 -</div>
+            </div>
+
+            <div class="kpi-box current-box">
+              <div class="kpi-label" id="totalMvLabel">현재 총 평가금액 (세전)</div>
+              <div class="kpi-value" id="totalMarketValueKrw">-</div>
+              <div class="kpi-sub" id="totalMvBreakdown">국내 - + 해외 -</div>
+            </div>
+
+            <div class="kpi-box profit-box" id="heroProfitBox">
+              <div class="kpi-label" id="totalPlLabel">전체 투자 대비 총 수익 (세전)</div>
+              <div class="kpi-value" id="totalProfitLossKrw">-</div>
+              <div class="kpi-badges">
+                <span class="rate-pill" id="totalReturnRatePill" title="매수원금 대비 수익률">0.00%</span>
+                <span class="pure-rate-pill" id="heroPureRatePill" title="실제 넣은 순수 현금 대비 진짜 수익률">순수 +0.00%</span>
+              </div>
+              <div class="kpi-sub hero-profit-sub-row" id="heroPureProfitStrip">
+                <span>순수수익: <strong class="sub-val" id="heroPureProfitVal">+0원</strong></span>
+                <span class="sub-sep">·</span>
+                <span id="sdkReturnRateNote" title="환차익 반영 공식 수익률">공식 -</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 원금 대비 평가금액 시각적 비교 게이지 -->
+          <div class="investment-gauge-wrap">
+            <div class="gauge-labels">
+              <span>투자 원금 대비 자산 변화 비교</span>
+              <span id="gaugeSummaryText">-</span>
+            </div>
+            <div class="dual-bar-track">
+              <div class="dual-bar-row" id="rowPureBar">
+                <span class="dual-bar-name">순수 원금</span>
+                <div class="dual-bar-bg">
+                  <div class="dual-bar-fill fill-pure" id="barPure" style="width: 63%"></div>
+                </div>
+                <span class="dual-bar-val" id="barPureVal">-</span>
+              </div>
+              <div class="dual-bar-row">
+                <span class="dual-bar-name">매수 원금</span>
+                <div class="dual-bar-bg">
+                  <div class="dual-bar-fill fill-purchase" id="barPurchase" style="width: 76%"></div>
+                </div>
+                <span class="dual-bar-val" id="barPurchaseVal">-</span>
+              </div>
+              <div class="dual-bar-row">
+                <span class="dual-bar-name">현재 평가금</span>
+                <div class="dual-bar-bg">
+                  <div class="dual-bar-fill fill-current" id="barCurrent" style="width: 100%"></div>
+                </div>
+                <span class="dual-bar-val" id="barCurrentVal">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 하단 보조 지표 (일간 손익 / 수수료·세금 / 예수금 / 계좌 총자산) -->
+          <div class="hero-footer-metrics">
+            <div class="mini-metric">
+              <span class="mini-label">오늘(일간) 손익</span>
+              <strong class="mini-val" id="dailyPlKrw">-</strong>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-label">예상 매도 수수료·세금 합계</span>
+              <strong class="mini-val" id="totalCostKrw">-</strong>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-label">주문 가능 현금 (예수금)</span>
+              <strong class="mini-val" id="totalCashKrw">-</strong>
+            </div>
+            <div class="mini-metric">
+              <span class="mini-label">현금 포함 계좌 총자산</span>
+              <strong class="mini-val" id="totalAssetKrw">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측: 국내주식 vs 해외주식 시장별 성적표 -->
+        <div class="market-split-col">
+          <div class="market-split-toolbar">
+            <label class="switch-label" title="국내에 상장된 해외주식 추종 ETF(예: TIGER 미국S&P500, 나스닥100 등)를 해외주식으로 간주하여 분류·합산합니다">
+              <input type="checkbox" id="overseasEtfToggle" />
+              <span class="slider"></span>
+              <span class="switch-text">국내상장 해외추종 ETF를 해외주식으로 분류</span>
+            </label>
+          </div>
+
+          <!-- 국내주식 카드 -->
+          <div class="card market-card">
+            <div class="market-card-head">
+              <div class="market-title">
+                <span class="flag-badge">🇰🇷</span>
+                <div>
+                  <h3 id="krwCardTitle">국내주식 (KRW)</h3>
+                  <span class="market-weight" id="krwWeightText">원금 비중 -%</span>
+                </div>
+              </div>
+              <span class="rate-pill" id="krwReturnPill">0.00%</span>
+            </div>
+            <div class="market-metrics-list">
+              <div class="m-row">
+                <span>매수 원금 (구매금액)</span>
+                <strong id="krwPurchase">-</strong>
+              </div>
+              <div class="m-row">
+                <span>현재 평가금액</span>
+                <strong id="krwMarketValue">-</strong>
+              </div>
+              <div class="m-row highlight-row">
+                <span>투자 대비 수익금</span>
+                <strong id="krwProfitLoss">-</strong>
+              </div>
+              <div class="m-row sub-row">
+                <span>오늘 손익 / 주문가능 현금</span>
+                <span id="krwDailyAndCash">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 해외주식 카드 -->
+          <div class="card market-card">
+            <div class="market-card-head">
+              <div class="market-title">
+                <span class="flag-badge">🇺🇸</span>
+                <div>
+                  <h3 id="usdCardTitle">해외주식 (USD)</h3>
+                  <span class="market-weight" id="usdWeightText">원금 비중 -%</span>
+                </div>
+              </div>
+              <span class="rate-pill" id="usdReturnPill">0.00%</span>
+            </div>
+            <div class="market-metrics-list">
+              <div class="m-row">
+                <span>매수 원금 (구매금액)</span>
+                <div class="dual-curr">
+                  <strong id="usdPurchaseMain">-</strong>
+                  <small id="usdPurchaseSub">-</small>
+                </div>
+              </div>
+              <div class="m-row">
+                <span>현재 평가금액</span>
+                <div class="dual-curr">
+                  <strong id="usdMarketValueMain">-</strong>
+                  <small id="usdMarketValueSub">-</small>
+                </div>
+              </div>
+              <div class="m-row highlight-row">
+                <span>투자 대비 수익금</span>
+                <div class="dual-curr">
+                  <strong id="usdProfitLossMain">-</strong>
+                  <small id="usdProfitLossSub">-</small>
+                </div>
+              </div>
+              <div class="m-row sub-row">
+                <span>오늘 손익 / 주문가능 달러</span>
+                <span id="usdDailyAndCash">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 차트 분석 섹션 (3종 시각화) -->
+      <div class="charts-grid">
+        <div class="card chart-card chart-wide">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">종목별 매수원금 vs 현재 평가금액 비교 (원화 환산)</h3>
+              <p class="card-desc">각 종목을 내가 얼마어치 샀고(회색 바), 현재 얼마의 가치가 되었는지(파란/빨간 바) 한눈에 비교합니다.</p>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="purchaseVsValueChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title" id="profitContribTitle">종목별 수익금 기여도</h3>
+              <p class="card-desc">전체 계좌 수익에 기여한 종목별 수익금(원)과 수익률(%) 비교입니다.</p>
+            </div>
+            <div class="mini-tabs" id="profitModeTabs">
+              <button class="mini-tab active" data-mode="amount">수익금 (원)</button>
+              <button class="mini-tab" data-mode="rate">수익률 (%)</button>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="profitContributionChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">포트폴리오 종목 비중</h3>
+              <p class="card-desc">내가 투자한 원금 기준 비중 vs 현재 평가금액 기준 비중</p>
+            </div>
+            <div class="mini-tabs" id="weightModeTabs">
+              <button class="mini-tab active" data-mode="marketValue">평가금액 기준</button>
+              <button class="mini-tab" data-mode="purchase">매수원금 기준</button>
+            </div>
+          </div>
+          <div class="chart-box doughnut-box">
+            <canvas id="portfolioWeightChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 보유 종목 상세 테이블 -->
+      <div class="card holdings-card">
+        <div class="holdings-header">
+          <div>
+            <h3 class="card-title">내 보유 종목별 매수금액 &amp; 수익 상세</h3>
+            <p class="card-desc">종목을 클릭하면 최근 90일 일봉 차트와 내 평균 매수가(평단가) 비교 및 체결 내역을 볼 수 있습니다.</p>
+          </div>
+
+          <div class="holdings-toolbar">
+            <div class="filter-pills" id="holdingFilterPills">
+              <button class="filter-pill active" data-filter="ALL">전체 <span id="countAll">0</span></button>
+              <button class="filter-pill" data-filter="KR">🇰🇷 국내주식 <span id="countKR">0</span></button>
+              <button class="filter-pill" data-filter="US">🇺🇸 해외주식 <span id="countUS">0</span></button>
+              <button class="filter-pill" data-filter="PROFIT">수익 중 <span id="countProfit">0</span></button>
+              <button class="filter-pill" data-filter="LOSS">손실 중 <span id="countLoss">0</span></button>
+            </div>
+
+            <div class="search-wrap">
+              <input type="text" id="stockSearchInput" placeholder="종목명 또는 티커 검색..." />
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="name" data-label="종목명 / 계좌">종목명 / 계좌</th>
+                <th class="text-right sortable" data-sort="quantity" data-label="보유수량">보유수량</th>
+                <th class="text-right sortable" data-sort="averagePurchasePriceKrw" data-label="내 평균 매수가 / 현재가">내 평균 매수가 / 현재가</th>
+                <th class="text-right sortable" data-sort="purchaseAmountKrw" data-label="총 매수원금 (투자금)">총 매수원금 (투자금)</th>
+                <th class="text-right sortable" data-sort="marketValueKrw" data-label="현재 평가금액">현재 평가금액 ↓</th>
+                <th class="text-right sortable" data-sort="profitLossKrw" data-label="투자 대비 수익금">투자 대비 수익금</th>
+                <th class="text-right sortable" data-sort="returnRatePct" data-label="수익률">수익률</th>
+                <th class="text-right sortable" data-sort="weightByMarketValuePct" data-label="원금 비중 → 평가 비중">원금 비중 → 평가 비중</th>
+                <th class="text-right sortable" data-sort="dailyProfitLossKrw" data-label="오늘 손익">오늘 손익</th>
+              </tr>
+            </thead>
+            <tbody id="holdingsTableBody">
+              <tr>
+                <td colspan="9" class="empty-cell">데이터를 불러오는 중입니다...</td>
+              </tr>
+            </tbody>
+            <tfoot id="holdingsTableFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탭 2: 구간별 수익률 변화 (일별 / 월별 / 연도별) -->
+    <section id="tab-history" class="tab-panel">
+      <div class="card history-card">
+        <div class="holdings-header">
+          <div>
+            <span class="badge-pill">보유 포트폴리오 시계열 분석</span>
+            <h3 class="card-title">구간별 수익률 및 평가손익 변화 추이</h3>
+            <p class="card-desc">내 보유 종목들의 일봉 시세 이력을 기반으로 매수원금 대비 수익률이 일별·월별·연도별로 어떻게 변했는지 보여줍니다.</p>
+          </div>
+
+          <div class="history-controls">
+            <!-- 단위 선택: 일별(기본) / 월별 / 연도별 -->
+            <div class="unit-pills" id="historyUnitPills">
+              <button class="unit-pill active" data-unit="daily">일별 (기본)</button>
+              <button class="unit-pill" data-unit="monthly">월별</button>
+              <button class="unit-pill" data-unit="yearly">연도별</button>
+            </div>
+
+            <!-- 일별 조회 기간 선택 -->
+            <div class="range-pills" id="historyRangePills">
+              <button class="range-pill" data-days="30">최근 1개월</button>
+              <button class="range-pill active" data-days="90">최근 3개월</button>
+              <button class="range-pill" data-days="180">최근 6개월</button>
+              <button class="range-pill" data-days="365">최근 1년</button>
+              <button class="range-pill" data-days="9999">전체 기간</button>
+            </div>
+
+            <!-- 월별 조회 기간 선택 -->
+            <div class="range-pills hidden" id="historyMonthRangePills">
+              <button class="range-pill" data-months="3">최근 3개월</button>
+              <button class="range-pill" data-months="6">최근 6개월</button>
+              <button class="range-pill active" data-months="12">최근 1년</button>
+              <button class="range-pill" data-months="24">최근 2년</button>
+              <button class="range-pill" data-months="YTD">올해 (YTD)</button>
+              <button class="range-pill" data-months="9999">전체 기간</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 구간 요약 KPI 4개 -->
+        <div class="history-kpi-grid">
+          <div class="modal-kpi-item">
+            <span>선택 구간 손익 &amp; 등락률</span>
+            <strong id="histStartToEndRate">-</strong>
+          </div>
+          <div class="modal-kpi-item">
+            <span>구간 내 최고 수익률 (Peak)</span>
+            <strong id="histPeakRate" class="text-up">-</strong>
+          </div>
+          <div class="modal-kpi-item">
+            <span>구간 내 최저 수익률 (Trough)</span>
+            <strong id="histTroughRate" class="text-down">-</strong>
+          </div>
+          <div class="modal-kpi-item">
+            <span>최근 구간 손익 증감</span>
+            <strong id="histLatestDelta">-</strong>
+          </div>
+        </div>
+
+        <!-- 차트 2종: 1) 누적 수익률 추이 라인 차트, 2) 구간별 손익 증감 바 차트 -->
+        <div class="history-charts-grid">
+          <div class="history-chart-panel">
+            <div class="modal-section-head">
+              <div>
+                <h4 id="histMainChartTitle">매수원금 대비 누적 수익금(원) 추이</h4>
+                <span class="chart-legend-hint" id="histMainChartSub">선택한 기간 동안의 누적 평가손익 및 수익률 흐름입니다</span>
+              </div>
+              <div class="mini-tabs" id="historyMetricTabs">
+                <button class="mini-tab active" data-metric="profit">누적 수익금 (원)</button>
+                <button class="mini-tab" data-metric="rate">수익률 (%)</button>
+                <button class="mini-tab" data-metric="value">총 평가금액 vs 원금 (원)</button>
+              </div>
+            </div>
+            <div class="chart-box history-chart-box">
+              <canvas id="historyReturnChart"></canvas>
+            </div>
+          </div>
+
+          <div class="history-chart-panel">
+            <div class="modal-section-head">
+              <div>
+                <h4 id="histBarChartTitle">구간별 평가손익 증감액 (직전 구간 대비)</h4>
+                <span class="chart-legend-hint">각 일/월/연도에 자산이 얼마 늘거나 줄었는지 보여줍니다</span>
+              </div>
+              <div class="mini-tabs" id="historyDeltaTabs">
+                <button class="mini-tab active" data-delta="amount">증감액 (원)</button>
+                <button class="mini-tab" data-delta="pct">구간 등락률 (%)</button>
+                <button class="mini-tab" data-delta="rateDiff">누적수익률 변화 (%p)</button>
+              </div>
+            </div>
+            <div class="chart-box history-chart-box">
+              <canvas id="historyDeltaChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 구간별 상세 테이블 -->
+        <div class="table-responsive" style="margin-top: 22px;">
+          <table class="holdings-table compact-table">
+            <thead>
+              <tr>
+                <th>구간 (일/월/년)</th>
+                <th class="text-right">총 매수원금</th>
+                <th class="text-right">총 평가금액 (원화 환산)</th>
+                <th class="text-right">누적 수익금</th>
+                <th class="text-right">누적 수익률</th>
+                <th class="text-right">직전 구간 대비 손익 증감</th>
+                <th class="text-right">직전 구간 대비 수익률 변화</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <tr>
+                <td colspan="7" class="empty-cell">구간별 수익률 데이터를 불러오는 중입니다...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탭: 순수 투자 원금 & 입출금 관리 -->
+    <section id="tab-capital" class="tab-panel">
+      <!-- 상단 요약 카드 -->
+      <div class="card capital-summary-card">
+        <div class="holdings-header">
+          <div>
+            <span class="badge-pill">키움 · 토스 · 한국투자증권 통합 실질 원금</span>
+            <h3 class="card-title">순수 투자 원금 &amp; 입출금 관리</h3>
+            <p class="card-desc">
+              증권사 간 자금 이동(이체) 중복을 상쇄하여 계산된 <strong>실제 내 주머니에서 들어간 순수 현금 투자 원금</strong>입니다.
+              신규 현금 입금이나 인출이 있을 때 아래 <strong>수기 등록 폼</strong>으로 추가하시면 실시간 자동 반영됩니다.
+            </p>
+          </div>
+          <button class="btn-cap-refresh" id="btnRefreshCapital" title="원금 데이터 및 실시간 잔고 새로고침">
+            새로고침
+          </button>
+        </div>
+
+        <div class="capital-kpi-grid">
+          <div class="cap-kpi-box main-box">
+            <span class="cap-kpi-label">총 순수 투자 원금 (실제 입금 현금)</span>
+            <strong class="cap-kpi-val highlight" id="capTotalPureKrw">226,942,111원</strong>
+            <span class="cap-kpi-sub" id="capBaseVsManual">기준 원금 226,942,111원 + 수기 변동 0원</span>
+          </div>
+
+          <div class="cap-kpi-box">
+            <span class="cap-kpi-label">현재 총 자산 평가금 (세전)</span>
+            <strong class="cap-kpi-val" id="capTotalMvKrw">-</strong>
+            <span class="cap-kpi-sub">토스 + 한투 + RIA 평가자산 합계</span>
+          </div>
+
+          <div class="cap-kpi-box profit-box" id="capProfitBox">
+            <span class="cap-kpi-label">순수 원금 대비 누적 총 수익</span>
+            <strong class="cap-kpi-val profit-val" id="capTotalProfitKrw">-</strong>
+            <span class="cap-kpi-sub">
+              진짜 누적 수익률: <strong id="capTotalRatePct">-</strong>
+            </span>
+          </div>
+
+          <div class="cap-kpi-box">
+            <span class="cap-kpi-label">수기 등록 입출금 누적</span>
+            <strong class="cap-kpi-val" id="capManualNetKrw">0원</strong>
+            <span class="cap-kpi-sub" id="capManualCountText">총 0건 등록됨</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 현금 입출금 수기 등록 폼 & 베이스 원금 요약 -->
+      <div class="capital-content-grid">
+        <!-- 1. 수기 등록 카드 -->
+        <div class="card capital-form-card">
+          <h4 class="card-sub-title">➕ 현금 입금 / 출금 수기 등록</h4>
+          <p class="form-desc">
+            월급 적립, 상여금 추가입금, 또는 계좌 출금 등이 발생했을 때 등록해 주세요. 즉시 총 순수 투자 원금에 합산됩니다.
+          </p>
+
+          <form id="capitalTxForm" class="capital-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="capTxDate">거래일자</label>
+                <input type="date" id="capTxDate" required class="input-field" />
+              </div>
+
+              <div class="form-group">
+                <label for="capTxType">구분</label>
+                <select id="capTxType" class="input-field">
+                  <option value="DEPOSIT" selected>입금 (+)</option>
+                  <option value="WITHDRAW">출금 (-)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="capTxAccount">대상 계좌</label>
+                <select id="capTxAccount" class="input-field">
+                  <option value="토스증권" selected>토스증권 (일반 위탁)</option>
+                  <option value="한투 연금저축">한투 연금저축</option>
+                  <option value="한투 ISA">한투 중개형 ISA</option>
+                  <option value="한투 IRP">한투 IRP</option>
+                  <option value="키움증권">키움증권</option>
+                  <option value="기타">기타 계좌</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="capTxAmount">금액 (원)</label>
+                <input type="number" id="capTxAmount" min="1" step="1" placeholder="예: 600000" required class="input-field" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="capTxMemo">메모 / 사유</label>
+              <input type="text" id="capTxMemo" placeholder="예: 11월 급여 정기납입, 추가 투자금 등" class="input-field" />
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-cap-submit" id="btnSubmitCapitalTx">
+                내역 등록하기
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2. 증권사별 통합 기준 원금 내역 카드 -->
+        <div class="card capital-base-card">
+          <h4 class="card-sub-title">🏛 증권사별 통합 기준 원금 (2006~2026.10 분석)</h4>
+          <p class="form-desc">
+            과거 입출금 이력과 주식 이전 내역을 교차 검증하여 도출된 계좌별 순수 원금 베이스라인입니다.
+          </p>
+
+          <div class="table-responsive">
+            <table class="holdings-table compact-table">
+              <thead>
+                <tr>
+                  <th>증권사 / 계좌</th>
+                  <th class="text-right">총 입금</th>
+                  <th class="text-right">총 출금</th>
+                  <th class="text-right">순투자 원금</th>
+                  <th>비고 및 자금 이동 경로</th>
+                </tr>
+              </thead>
+              <tbody id="capBaseTableBody">
+                <!-- JS 렌더링 -->
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>통합 기준 원금 소계</td>
+                  <td class="text-right" id="capBaseDepositTotal">325,304,515원</td>
+                  <td class="text-right" id="capBaseWithdrawTotal">98,362,404원</td>
+                  <td class="text-right highlight" id="capBaseNetTotal">226,942,111원</td>
+                  <td>중복 이체 상쇄 완료</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수기 등록 내역 테이블 -->
+      <div class="card capital-tx-list-card" style="margin-top: 18px;">
+        <div class="holdings-header">
+          <div>
+            <h4 class="card-sub-title" style="margin:0;">📝 수기 등록 입출금 내역 목록</h4>
+            <p class="card-desc" style="margin-top:4px;">
+              사용자님이 직접 추가하신 입출금 내역입니다. 잘못 입력된 항목은 언제든지 삭제하실 수 있습니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="holdings-table compact-table">
+            <thead>
+              <tr>
+                <th>거래일자</th>
+                <th>구분</th>
+                <th>대상 계좌</th>
+                <th class="text-right">금액</th>
+                <th>메모</th>
+                <th>등록일시</th>
+                <th class="text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="capManualTableBody">
+              <!-- JS 렌더링 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탭 3: RIA 계좌 종목 등록·관리 (토스 실시간 시세 연동) -->
+    <section id="tab-ria" class="tab-panel">
+      <div class="card ria-card">
+        <div class="holdings-header">
+          <div>
+            <span class="badge-pill">토스 실시간 시세(`/api/v1/prices`) 자동 연동</span>
+            <h3 class="card-title">RIA 계좌 보유종목 등록 및 관리</h3>
+            <p class="card-desc">
+              RIA 계좌에 보유하신 <strong>종목·수량·평단가(또는 매수원금)</strong>를 등록해 두시면, 매 조회 시 토스증권 API에서 <strong>실시간 현재가</strong>를 받아와 평가금액·수익금·수익률을 자동 계산하고 전체 계좌 성적표 및 토스 공식 수익률에 합산합니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- RIA 종목 추가 폼 -->
+        <div class="ria-form-box">
+          <h4>+ RIA 계좌 보유종목 추가 / 수정</h4>
+          <div class="ria-form-grid">
+            <div class="form-field search-autocomplete-wrap">
+              <label>1. 종목 검색 (한글 종목명 또는 코드/티커)</label>
+              <input type="text" id="riaSearchInput" placeholder="예: 삼성전자, KODEX, 엔비디아, 005930..." autocomplete="off" />
+              <div id="riaAutocompleteList" class="autocomplete-dropdown hidden"></div>
+            </div>
+
+            <div class="form-field">
+              <label>종목코드 / 티커</label>
+              <input type="text" id="riaSymbolInput" placeholder="예: 005930 또는 AAPL" />
+            </div>
+
+            <div class="form-field">
+              <label>종목명</label>
+              <input type="text" id="riaNameInput" placeholder="자동입력 또는 직접입력" />
+            </div>
+
+            <div class="form-field">
+              <label>통화</label>
+              <select id="riaCurrencySelect" class="select-input">
+                <option value="KRW">KRW (국내 원화)</option>
+                <option value="USD">USD (미국 달러)</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label>2. 보유 수량 (주)</label>
+              <input type="number" step="any" id="riaQtyInput" placeholder="예: 50" />
+            </div>
+
+            <div class="form-field">
+              <label>3. 내 평균 매수가 (1주당 평단가)</label>
+              <input type="number" step="any" id="riaAvgPriceInput" placeholder="예: 70000" />
+            </div>
+
+            <div class="form-field">
+              <label>총 매수원금 (수량×평단가 자동계산)</label>
+              <input type="number" step="any" id="riaPurchaseAmtInput" placeholder="자동 계산됨" />
+            </div>
+
+            <div class="form-field">
+              <label>4. 매수일 (미입력 시 평단가로 자동추정)</label>
+              <input type="date" id="riaDateInput" />
+            </div>
+
+            <div class="form-field form-btn-wrap">
+              <button class="btn-primary" id="saveRiaItemBtn">RIA 종목 저장</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 등록된 RIA 종목 리스트 -->
+        <div class="table-responsive" style="margin-top: 20px;">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>종목명 (코드)</th>
+                <th>매수일 (구간수익 반영일)</th>
+                <th class="text-right">보유수량</th>
+                <th class="text-right">내 평균 매수가</th>
+                <th class="text-right">실시간 현재가 (Toss API)</th>
+                <th class="text-right">매수 원금</th>
+                <th class="text-right">실시간 평가금액</th>
+                <th class="text-right">수익금 / 수익률</th>
+                <th class="text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="riaManageTableBody">
+              <tr>
+                <td colspan="9" class="empty-cell">등록된 RIA 계좌 보유종목이 없습니다. 위 입력창에서 종목을 추가해 보세요!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIA 이관·매도 내역 (토스 종합계좌 → RIA 이관 후 매도) -->
+      <div class="card ria-card" style="margin-top: 20px;">
+        <div class="holdings-header">
+          <div>
+            <h3 class="card-title">RIA 이관·매도 내역 (수동 수정 가능)</h3>
+            <p class="card-desc">
+              토스 종합계좌 보유 주식을 RIA로 옮겨 판매한 내역입니다. 여기 등록된 수량은 <strong>종합계좌에서 빠져나간 것으로 간주</strong>하여 구간별 수익률의 보유수량·투자 원금 계산에 반영됩니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="order-summary-strip" id="riaSalesSummaryStrip">
+          <div class="order-stat"><span>매도 건수</span><strong id="riaSaleCountStat">-</strong></div>
+          <div class="order-stat"><span>총 판매금액</span><strong id="riaSaleSellStat">-</strong></div>
+          <div class="order-stat"><span>총 구매금액(원금)</span><strong id="riaSaleCostStat">-</strong></div>
+          <div class="order-stat"><span>수수료·세금</span><strong id="riaSaleFeeStat">-</strong></div>
+          <div class="order-stat"><span>최종 실현 수익</span><strong id="riaSaleProfitStat">-</strong></div>
+        </div>
+
+        <div class="ria-form-box">
+          <h4>+ RIA 매도 내역 추가 / 수정</h4>
+          <input type="hidden" id="riaSaleIdInput" />
+          <div class="ria-form-grid">
+            <div class="form-field">
+              <label>종목코드 / 티커</label>
+              <input type="text" id="riaSaleSymbolInput" placeholder="예: TSLA" />
+            </div>
+            <div class="form-field">
+              <label>종목명</label>
+              <input type="text" id="riaSaleNameInput" placeholder="자동입력 또는 직접입력" />
+            </div>
+            <div class="form-field">
+              <label>통화</label>
+              <select id="riaSaleCurrencySelect" class="select-input">
+                <option value="USD">USD (미국 달러)</option>
+                <option value="KRW">KRW (국내 원화)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>판매일시</label>
+              <input type="text" id="riaSaleDateInput" placeholder="예: 2026-05-13 08:24" />
+            </div>
+            <div class="form-field">
+              <label>매도 수량 (주)</label>
+              <input type="number" step="any" id="riaSaleQtyInput" placeholder="예: 4" />
+            </div>
+            <div class="form-field">
+              <label>총 판매금액 (원)</label>
+              <input type="number" step="any" id="riaSaleSellKrwInput" placeholder="예: 2492258" />
+            </div>
+            <div class="form-field">
+              <label>총 구매금액 (원)</label>
+              <input type="number" step="any" id="riaSaleBuyKrwInput" placeholder="예: 1021959" />
+            </div>
+            <div class="form-field">
+              <label>총 판매금액 ($, 해외)</label>
+              <input type="number" step="any" id="riaSaleSellUsdInput" placeholder="예: 1700.04" />
+            </div>
+            <div class="form-field">
+              <label>총 구매금액 ($, 해외)</label>
+              <input type="number" step="any" id="riaSaleBuyUsdInput" placeholder="예: 778.89" />
+            </div>
+            <div class="form-field">
+              <label>수수료 (원)</label>
+              <input type="number" step="any" id="riaSaleCommInput" placeholder="예: 3460" />
+            </div>
+            <div class="form-field">
+              <label>제세금 (원)</label>
+              <input type="number" step="any" id="riaSaleTaxInput" placeholder="예: 58" />
+            </div>
+            <div class="form-field form-btn-wrap">
+              <button class="btn-primary" id="saveRiaSaleBtn">매도 내역 저장</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="margin-top: 20px;">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>판매일시</th>
+                <th>종목명 (코드)</th>
+                <th class="text-right">수량</th>
+                <th class="text-right">총 판매금액</th>
+                <th class="text-right">총 구매금액</th>
+                <th class="text-right">수수료 / 세금</th>
+                <th class="text-right">최종 수익</th>
+                <th class="text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="riaSalesTableBody">
+              <tr><td colspan="8" class="empty-cell">등록된 RIA 매도 내역이 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 탭 4: 주문·체결 내역 조회 -->
+    <section id="tab-orders" class="tab-panel">
+      <div class="card orders-card">
+        <div class="holdings-header">
+          <div>
+            <h3 class="card-title">주문 및 체결 내역</h3>
+            <p class="card-desc">내가 언제 어떤 주식을 얼마에 매수·매도했는지 확인합니다.</p>
+          </div>
+          <div class="orders-toolbar">
+            <select id="orderStatusSelect" class="select-input">
+              <option value="CLOSED">종료된 주문 (체결·취소)</option>
+              <option value="OPEN">진행 중 주문 (미체결)</option>
+            </select>
+            <select id="orderFilledFilter" class="select-input">
+              <option value="FILLED_ONLY">체결 완료(FILLED)만 보기</option>
+              <option value="ALL">취소·거부 포함 전체 보기</option>
+            </select>
+            <input type="text" id="orderSymbolInput" class="select-input" placeholder="종목명 또는 코드 검색 (예: 삼성전자, 005930, AAPL)" />
+            <button class="btn-primary" id="loadOrdersBtn">조회하기</button>
+          </div>
+        </div>
+
+        <div class="order-summary-strip" id="orderSummaryStrip">
+          <div class="order-stat">
+            <span>조회된 체결 건수</span>
+            <strong id="ordCountStat">-</strong>
+          </div>
+          <div class="order-stat">
+            <span>조회 내역 중 국내 매수 합계</span>
+            <strong id="ordBuyKrwStat">-</strong>
+          </div>
+          <div class="order-stat">
+            <span>조회 내역 중 국내 매도 합계</span>
+            <strong id="ordSellKrwStat">-</strong>
+          </div>
+          <div class="order-stat">
+            <span>조회 내역 중 해외 매수 합계</span>
+            <strong id="ordBuyUsdStat">-</strong>
+          </div>
+          <div class="order-stat">
+            <span>조회 내역 중 해외 매도 합계</span>
+            <strong id="ordSellUsdStat">-</strong>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>주문일시</th>
+                <th>종목</th>
+                <th>구분</th>
+                <th>상태</th>
+                <th class="text-right">주문수량 / 체결수량</th>
+                <th class="text-right">체결 단가 (주문가)</th>
+                <th class="text-right">총 체결 금액</th>
+                <th class="text-right">수수료 / 세금</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr>
+                <td colspan="8" class="empty-cell">상단 탭을 열거나 조회하기를 누르면 주문 내역을 불러옵니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 종목 상세 모달 (평단가 vs 일봉 차트 & 종목 주문 내역) -->
+  <div id="stockModal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title-row">
+            <span class="flag-badge" id="modalFlag">🇰🇷</span>
+            <h2 id="modalStockName">종목명</h2>
+            <span class="symbol-code" id="modalStockSymbol">005930</span>
+          </div>
+          <p class="modal-sub" id="modalStockSummary">내 평단가 vs 현재가 비교</p>
+        </div>
+        <button class="modal-close" id="closeModalBtn">&times;</button>
+      </div>
+
+      <div class="modal-kpi-grid" id="modalKpiGrid"></div>
+
+      <div class="modal-chart-section">
+        <div class="modal-section-head">
+          <h4>최근 90일 주가 추이 vs 내 평균 매수가 (점선)</h4>
+          <span class="chart-legend-hint">점선보다 현재 주가가 위에 있으면 수익 구간입니다</span>
+        </div>
+        <div class="modal-chart-wrap">
+          <canvas id="stockCandleChart"></canvas>
+        </div>
+      </div>
+
+      <div class="modal-orders-section">
+        <h4>이 종목의 최근 체결 내역</h4>
+        <div class="table-responsive">
+          <table class="holdings-table compact-table">
+            <thead>
+              <tr>
+                <th>체결/주문일시</th>
+                <th>매수/매도</th>
+                <th>상태</th>
+                <th class="text-right">체결수량</th>
+                <th class="text-right">체결단가</th>
+                <th class="text-right">체결금액</th>
+              </tr>
+            </thead>
+            <tbody id="modalOrdersBody">
+              <tr><td colspan="6" class="empty-cell">불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=20261031_14"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .catch((err) => console.warn('SW register error:', err));
+      });
+    }
+  </script>
+</body>
+</html>
