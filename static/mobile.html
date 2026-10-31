@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="icon" type="image/png" href="/icon-192.png">
   <title>통합 주식 계좌 리포트 | 모바일</title>
-  <script src="/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #f2f4f6;
@@ -46,7 +46,7 @@
       max-width: 100vw;
       overflow-x: hidden;
       width: 100%;
-      overscroll-behavior-y: contain; /* 브라우저 기본 하드 리로드 방지 (앱 스타일 인앱 당겨서 새로고침 지원) */
+      /* overscroll-behavior-y: auto; */ /* 브라우저 기본 하드 리로드 방지 (앱 스타일 인앱 당겨서 새로고침 지원) */
     }
 
     body {
@@ -123,11 +123,7 @@
       animation: fadeIn 0.2s ease;
     }
 
-    .data-refreshing .m-card:not(.hero-card),
-    .data-refreshing .m-chart-card {
-      opacity: 0.72;
-      transition: opacity 0.2s ease;
-    }
+    .data-refreshing .m-card:not(.hero-card), .data-refreshing .m-chart-card { opacity: 1; }
 
     .m-loading-state-card {
       background: #ffffff;
@@ -180,6 +176,69 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    
+    /* 브랜드 아이콘 우상향 애니메이션 */
+    .brand-icon svg {
+      overflow: visible;
+    }
+    .brand-icon .logo-chart-line {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 0;
+    }
+    .brand-icon .logo-chart-arrow {
+      transform-box: fill-box;
+      transform-origin: center center;
+      will-change: transform, opacity;
+    }
+    @keyframes chartLineRise {
+      0% {
+        stroke-dashoffset: 100;
+        opacity: 0.3;
+      }
+      45% {
+        opacity: 1;
+      }
+      75%, 100% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+      }
+    }
+    @keyframes chartArrowSurge {
+      0%, 42% {
+        opacity: 0;
+        transform: scale(0);
+      }
+      58% {
+        opacity: 0.8;
+        transform: scale(0.6) translate(-0.8px, 0.8px);
+      }
+      75% {
+        opacity: 1;
+        transform: scale(1.16) translate(0.4px, -0.4px);
+      }
+      88% {
+        transform: scale(0.96) translate(0, 0);
+      }
+      96%, 100% {
+        opacity: 1;
+        transform: scale(1) translate(0, 0);
+      }
+    }
+    @keyframes brandSurgeUp {
+      0%, 100% { transform: translateY(0); }
+      35% { transform: translateY(-2px); }
+      70% { transform: translateY(0.5px); }
+    }
+    .brand-icon.is-refreshing {
+      animation: brandSurgeUp 0.95s cubic-bezier(0.34, 1.56, 0.64, 1) infinite !important;
+    }
+    .brand-icon.is-refreshing .logo-chart-line {
+      animation: chartLineRise 0.95s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+    }
+    .brand-icon.is-refreshing .logo-chart-arrow {
+      animation: chartArrowSurge 0.95s cubic-bezier(0.25, 1, 0.5, 1) infinite;
     }
 
     .brand-icon {
@@ -298,18 +357,28 @@
 
     /* 메인 컨테이너 */
     .mobile-content {
-      padding: 16px 16px 24px;
+      padding: 16px 14px 24px;
       display: flex;
       flex-direction: column;
       gap: 14px;
+      width: 100%;
+      max-width: 100vw;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
     /* 공통 카드 */
     .m-card {
       background: var(--card-bg);
       border-radius: var(--radius-lg);
-      padding: 20px 18px;
+      padding: 18px 14px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
     /* 총 자산 메인 히어로 카드 */
@@ -346,9 +415,46 @@
     .hero-profit-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
+      margin-bottom: 12px;
+      flex-wrap: nowrap;
+    }
+    .hero-profit-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .capital-toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .capital-toggle-label .m-slider {
+      width: 34px;
+      height: 18px;
+    }
+    .capital-toggle-label .m-slider::before {
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 2px;
+    }
+    .capital-toggle-label input:checked + .m-slider::before {
+      transform: translateX(16px);
+    }
+    .capital-compare-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: fadeIn 0.22s ease;
     }
 
     .profit-badge {
@@ -889,24 +995,7 @@
     }
 
     /* 로딩 인디케이터 */
-    .loading-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(3px);
-      z-index: 150;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-
-    .loading-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .loading-overlay { display: none !important; width: 0 !important; height: 0 !important; pointer-events: none !important; }
 
     .spinner {
       width: 36px;
@@ -950,6 +1039,10 @@
       padding: 4px;
       gap: 4px;
       margin-top: 4px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
 
     .m-seg-btn {
@@ -988,8 +1081,13 @@
     .m-chart-card {
       background: var(--card-bg);
       border-radius: var(--radius-lg);
-      padding: 18px 16px;
+      padding: 18px 14px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
     .m-chart-head {
@@ -999,6 +1097,9 @@
       margin-bottom: 12px;
       flex-wrap: wrap;
       gap: 8px;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
 
     .m-chart-title {
@@ -1019,6 +1120,7 @@
       border-radius: 8px;
       padding: 2px;
       gap: 2px;
+      flex-wrap: wrap;
     }
 
     .m-toggle-btn {
@@ -1043,6 +1145,14 @@
     .m-chart-wrap {
       position: relative;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .m-chart-wrap canvas {
+      max-width: 100% !important;
+      box-sizing: border-box !important;
     }
 
     .top-weight-list {
@@ -1175,6 +1285,10 @@
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
       padding-bottom: 2px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .m-hist-range-scroll::-webkit-scrollbar {
       display: none;
@@ -1200,18 +1314,21 @@
 
     .m-kpi-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 8px;
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       box-sizing: border-box;
     }
     .m-kpi-box {
       min-width: 0;
       width: 100%;
+      max-width: 100%;
       box-sizing: border-box;
       background: var(--bg);
       border-radius: var(--radius-sm);
-      padding: 10px 10px;
+      padding: 10px 8px;
       display: flex;
       flex-direction: column;
       gap: 3px;
@@ -1231,12 +1348,21 @@
       letter-spacing: -0.3px;
       font-variant-numeric: tabular-nums;
       color: var(--text-main);
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
+    }
+    .m-kpi-date {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: -0.2px;
+      flex-shrink: 0;
     }
     .m-kpi-sub {
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--text-sub);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -1319,11 +1445,10 @@
   <!-- 헤더 -->
   <header class="mobile-header">
     <div class="brand-wrap">
-      <div class="brand-icon" title="통합 주식 계좌 리포트">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 18.5L8.5 12.5L13 15L20.5 6.5V18.5H3Z" fill="rgba(255,255,255,0.25)"/>
-          <path d="M3 18.5L8.5 12.5L13 15L20.5 6.5" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="20.5" cy="6.5" r="2.5" fill="#ff4d5e" stroke="#ffffff" stroke-width="1.3"/>
+      <div class="brand-icon" id="brandIconMobile" role="button" tabindex="0" title="클릭하여 새로고침" style="cursor: pointer;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="overflow: visible;" xmlns="http://www.w3.org/2000/svg">
+          <path class="logo-chart-line" pathLength="100" d="M3.8 17.5 C6.5 14.5 8.2 10.8 9.8 10.8 C11.2 10.8 11.8 13.8 13.2 13.8 C14.3 13.8 15.6 11.5 17.4 8.6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polygon class="logo-chart-arrow" points="21.0,4.2 15.3,7.1 19.0,10.6" fill="#f04452"/>
         </svg>
       </div>
       <div class="brand-title">
@@ -1396,14 +1521,21 @@
       <div class="hero-total-amount" id="totalMv">-원</div>
 
       <div class="hero-profit-row">
-        <span class="profit-badge up" id="profitBadge">
-          <span id="profitRate">+0.00%</span>
-        </span>
-        <span class="profit-raw-text up" id="profitAmount">+0원</span>
+        <div class="hero-profit-left">
+          <span class="profit-badge up" id="profitBadge">
+            <span id="profitRate">+0.00%</span>
+          </span>
+          <span class="profit-raw-text up" id="profitAmount">+0원</span>
+        </div>
+        <label class="m-switch-label capital-toggle-label" id="mCapitalToggleWrap" title="순수 투자 원금 비교를 켜거나 끕니다" style="display: none;">
+          <input type="checkbox" id="mCapitalCompareToggle" />
+          <span class="m-slider"></span>
+          <span class="m-switch-text">원금 비교</span>
+        </label>
       </div>
 
-      <!-- 순수 투자 원금 (실입금 현금) 비교 배너 -->
-      <div class="pure-capital-banner" id="mPureCapitalBanner">
+      <!-- 순수 투자 원금 (실입금 현금) 비교 배너: 전체 계좌 & 원금비교 ON일 때만 표시 -->
+      <div class="pure-capital-banner" id="mPureCapitalBanner" style="display: none;">
         <div class="pure-banner-head">
           <span class="pure-banner-title">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -1419,9 +1551,9 @@
         </div>
       </div>
 
-      <!-- 3단계 자산 비례 바 -->
+      <!-- 자산 비례 바: 매수원금과 현재평가는 항상 표시, 순수원금은 원금비교 ON일 때만 추가 표시 -->
       <div class="asset-ratio-box">
-        <div class="bar-row" id="mRowPureBar">
+        <div class="bar-row" id="mRowPureBar" style="display: none;">
           <span class="bar-label">순수원금</span>
           <div class="bar-track">
             <div class="bar-fill fill-pure" id="barPure" style="width: 63%"></div>
@@ -1513,7 +1645,7 @@
     </div>
 
     <!-- 3-A. 보유 종목 리스트 섹션 -->
-    <section class="m-card" id="mSectionHoldings" style="display: none;">
+    <section class="m-card" id="mSectionHoldings" style="display: none; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
       <div class="holdings-header">
         <div class="holdings-title">
           <span>보유 종목</span>
@@ -1548,7 +1680,7 @@
     </section>
 
     <!-- 3-B. 모바일 최적화 분석 차트 섹션 (3종) -->
-    <div id="mSectionCharts" style="display: flex; flex-direction: column; gap: 14px;">
+    <div id="mSectionCharts" style="display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
       <!-- 차트 갱신 중 로딩 안내 바 -->
       <div class="m-section-loader" id="mChartsLoader" style="display: none;">
         <div class="m-sync-spinner"></div>
@@ -1606,7 +1738,7 @@
     </div>
 
     <!-- 3-C. 구간별 수익률 변화 히스토리 섹션 -->
-    <div id="mSectionHistory" style="display: none; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
+    <div id="mSectionHistory" style="display: none; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
 
       <!-- 필터 카드 (단위 & 기간) -->
       <section class="m-card" style="padding: 14px 16px;">
@@ -1639,9 +1771,9 @@
 
       <!-- 구간 성과 핵심 KPI 카드 (2x2 그리드) -->
       <section class="m-card" style="padding: 16px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-          <span style="font-size: 14.5px; font-weight: 800; color: var(--text-main);">구간 성과 핵심 요약</span>
-          <span style="font-size: 11.5px; color: var(--text-muted);" id="mHistPeriodBadge">-</span>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 8px; width: 100%; min-width: 0;">
+          <span style="font-size: 14.5px; font-weight: 800; color: var(--text-main); flex-shrink: 0;">구간 성과 핵심 요약</span>
+          <span style="font-size: 11.5px; color: var(--text-muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;" id="mHistPeriodBadge">-</span>
         </div>
         <div class="m-kpi-grid">
           <div class="m-kpi-box">
@@ -1792,9 +1924,6 @@
   </div>
 
   <!-- 로딩 오버레이 & 토스트 -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-  </div>
   <div class="toast" id="toastMessage">새로고침 되었습니다.</div>
 
   <script>
@@ -1862,22 +1991,18 @@
       setTimeout(() => t.classList.remove('show'), 2200);
     }
 
-    function setLoading(isLoading) {
-      document.getElementById('loadingOverlay').classList.toggle('active', isLoading);
-    }
+    function setLoading(isLoading) { /* 통일된 UI: 전체 화면 블러 비활성화 */ }
 
     // 데이터 가져오기
     async function loadData(force = false) {
       const btn = document.getElementById('btnRefresh');
       if (btn) btn.classList.add('spinning');
-      const chartsLoader = document.getElementById('mChartsLoader');
-
-      if (chartsLoader && state.activeTab === 'charts') {
-        chartsLoader.style.display = 'flex';
+      const brandIcon = document.getElementById('brandIconMobile');
+      if (brandIcon) {
+        brandIcon.classList.remove('is-refreshing');
+        void brandIcon.offsetWidth;
+        brandIcon.classList.add('is-refreshing');
       }
-      document.body.classList.add('data-refreshing');
-
-      if (!state.dashboard) setLoading(true);
 
       try {
         const [dashRes, capRes] = await Promise.all([
@@ -1906,6 +2031,10 @@
       } finally {
         setLoading(false);
         if (btn) btn.classList.remove('spinning');
+        const brandIcon = document.getElementById('brandIconMobile');
+        if (brandIcon) {
+          setTimeout(() => brandIcon.classList.remove('is-refreshing'), 900);
+        }
         document.body.classList.remove('data-refreshing');
         if (chartsLoader) chartsLoader.style.display = 'none';
       }
@@ -1914,14 +2043,13 @@
     // 렌더링 메인
     function render() {
       if (!state.dashboard) return;
-      renderHero();
-      renderDistribution();
-      if (state.activeTab === 'holdings') {
-        renderHoldings();
-      } else if (state.activeTab === 'charts') {
-        renderMobileCharts();
+      try { renderHero(); } catch (e) { console.error('renderHero error:', e); }
+      try { renderDistribution(); } catch (e) { console.error('renderDistribution error:', e); }
+      try { renderHoldings(); } catch (e) { console.error('renderHoldings error:', e); }
+      if (state.activeTab === 'charts') {
+        try { renderMobileCharts(); } catch (e) { console.error('renderMobileCharts error:', e); }
       } else if (state.activeTab === 'history') {
-        renderMobileHistory();
+        try { renderMobileHistory(); } catch (e) { console.error('renderMobileHistory error:', e); }
       }
     }
 
@@ -1952,50 +2080,84 @@
       amtText.className = `profit-raw-text ${sc}`;
       amtText.textContent = fmtKrw(profit, true);
 
+      // 1. 전체 계좌(ALL) 여부
       const isAll = state.scope === 'ALL';
 
-      // 순수 원금 배너 및 게이지 행: 전체 계좌(ALL)일 때만 표시
-      const mBanner = document.getElementById('mPureCapitalBanner');
-      if (mBanner) mBanner.style.display = isAll ? 'block' : 'none';
-      const mRowPure = document.getElementById('mRowPureBar');
-      if (mRowPure) mRowPure.style.display = isAll ? 'grid' : 'none';
+      // 2. [원금 비교] 토글 스위치: 오직 전체 계좌(ALL)에서만 노출!
+      const toggleWrap = document.getElementById('mCapitalToggleWrap');
+      if (toggleWrap) {
+        toggleWrap.style.display = isAll ? 'inline-flex' : 'none';
+      }
 
-      // 순수 원금 계산
+      // 3. 토글 켜짐 여부 (전체 계좌가 아닐 때는 항상 OFF)
+      const isCompareOn = isAll && (document.getElementById('mCapitalCompareToggle')?.checked || false);
+
+      // 4. 순수 원금 배너 및 순수원금 바: 토글이 켜져 있을 때만 표시
+      const mBanner = document.getElementById('mPureCapitalBanner');
+      if (mBanner) {
+        mBanner.style.display = isCompareOn ? 'block' : 'none';
+      }
+      const mRowPure = document.getElementById('mRowPureBar');
+      if (mRowPure) {
+        mRowPure.style.display = isCompareOn ? 'grid' : 'none';
+      }
+
+      // 5. 순수 원금 계산 (토글 켜져 있을 때)
       const cap = state.capital || (d && d.capitalSummary);
       const pureCap = (cap && cap.totalNetCapitalKrw) || 226942111;
       const pureProfit = mv - pureCap;
       const pureRate = pureCap > 0 ? (pureProfit / pureCap) * 100 : 0;
 
-      document.getElementById('pureCapitalVal').textContent = fmtKrw(pureCap);
+      const pureCapVal = document.getElementById('pureCapitalVal');
+      if (pureCapVal) pureCapVal.textContent = fmtKrw(pureCap);
+
       const pureGainEl = document.getElementById('pureProfitVal');
-      pureGainEl.textContent = `순수익 ` + fmtKrw(pureProfit, true);
-      pureGainEl.style.color = pureProfit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+      if (pureGainEl) {
+        pureGainEl.textContent = `순수익 ` + fmtKrw(pureProfit, true);
+        pureGainEl.style.color = pureProfit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+      }
 
       const pureRateEl = document.getElementById('pureReturnRate');
-      pureRateEl.textContent = `순수 ` + fmtPct(pureRate);
-      pureRateEl.style.background = pureProfit >= 0 ? '#edf2ff' : '#fff0f0';
-      pureRateEl.style.color = pureProfit >= 0 ? '#364fc7' : '#c92a2a';
+      if (pureRateEl) {
+        pureRateEl.textContent = `순수 ` + fmtPct(pureRate);
+        pureRateEl.style.background = pureProfit >= 0 ? '#edf2ff' : '#fff0f0';
+        pureRateEl.style.color = pureProfit >= 0 ? '#364fc7' : '#c92a2a';
+      }
 
-      // 3단계 비율 바
-      const maxVal = isAll ? Math.max(pureCap, purchase, mv, 1) : Math.max(purchase, mv, 1);
-      const wPure = Math.max(10, Math.round((pureCap / maxVal) * 100));
+      // 6. 3단계 비율 바 게이지 계산
+      // 토글 ON이면 순수원금 포함 3자 비교, 토글 OFF면 매수원금 vs 현재평가 2자 비교
+      const maxVal = isCompareOn ? Math.max(pureCap, purchase, mv, 1) : Math.max(purchase, mv, 1);
+
+      if (isCompareOn) {
+        const wPure = Math.max(10, Math.round((pureCap / maxVal) * 100));
+        const barPure = document.getElementById('barPure');
+        if (barPure) barPure.style.width = wPure + '%';
+        const barPureVal = document.getElementById('barPureVal');
+        if (barPureVal) barPureVal.textContent = fmtKrw(pureCap);
+      }
+
+      // 매수원금과 현재평가는 토글 ON/OFF 상관없이 항상 정상 표시!
       const wPur = Math.max(10, Math.round((purchase / maxVal) * 100));
       const wMv = Math.max(10, Math.round((mv / maxVal) * 100));
 
-      document.getElementById('barPure').style.width = wPure + '%';
-      document.getElementById('barPureVal').textContent = fmtKrw(pureCap);
+      const barPurchase = document.getElementById('barPurchase');
+      if (barPurchase) barPurchase.style.width = wPur + '%';
+      const barPurchaseVal = document.getElementById('barPurchaseVal');
+      if (barPurchaseVal) barPurchaseVal.textContent = fmtKrw(purchase);
 
-      document.getElementById('barPurchase').style.width = wPur + '%';
-      document.getElementById('barPurchaseVal').textContent = fmtKrw(purchase);
-
-      document.getElementById('barCurrent').style.width = wMv + '%';
-      document.getElementById('barCurrentVal').textContent = fmtKrw(mv);
-      document.getElementById('barCurrentVal').style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+      const barCurrent = document.getElementById('barCurrent');
+      if (barCurrent) barCurrent.style.width = wMv + '%';
+      const barCurrentVal = document.getElementById('barCurrentVal');
+      if (barCurrentVal) {
+        barCurrentVal.textContent = fmtKrw(mv);
+        barCurrentVal.style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-blue)';
+      }
     }
 
     // 2. 자산 배분 비중 렌더링
     function renderDistribution() {
       const d = state.dashboard;
+      if (!d) return;
       const kr = d.krwMarket || {};
       const us = d.usdMarket || {};
       const allItems = d.items || [];
@@ -2029,6 +2191,7 @@
     // 3. 종목 리스트 렌더링
     function renderHoldings() {
       const d = state.dashboard;
+      if (!d) return;
       let items = (d.items || []).slice();
 
       // 검색 필터
@@ -2168,19 +2331,25 @@
       document.getElementById('mSectionCharts').style.display = tab === 'charts' ? 'flex' : 'none';
       document.getElementById('mSectionHistory').style.display = tab === 'history' ? 'flex' : 'none';
 
-      if (tab === 'charts') {
-        setTimeout(renderMobileCharts, 50);
+      if (tab === 'holdings') {
+        try { renderHoldings(); } catch (e) { console.error(e); }
+      } else if (tab === 'charts') {
+        try { renderMobileCharts(); } catch (e) { console.error(e); }
       } else if (tab === 'history') {
         if (!state.historyData) {
           fetchReturnsHistory();
         } else {
-          setTimeout(renderMobileHistory, 50);
+          try { renderMobileHistory(); } catch (e) { console.error(e); }
         }
       }
     }
 
     // 모바일 차트 3종 통합 렌더링
     function renderMobileCharts() {
+      if (typeof Chart === 'undefined') {
+        setTimeout(renderMobileCharts, 150);
+        return;
+      }
       if (!state.dashboard || state.activeTab !== 'charts') return;
       renderMobileWeightChart();
       renderMobileProfitChart();
@@ -2467,6 +2636,10 @@
     }
 
     function renderMobileHistory() {
+      if (typeof Chart === 'undefined') {
+        setTimeout(renderMobileHistory, 150);
+        return;
+      }
       if (!state.historyData || state.activeTab !== 'history') return;
 
       const unit = state.historyUnit; // 'daily' | 'monthly' | 'yearly'
@@ -2536,11 +2709,12 @@
       const kpiStartEnd = document.getElementById('mHistKpiStartEnd');
       const kpiStartEndSub = document.getElementById('mHistKpiStartEndSub');
       if (kpiStartEnd) {
-        kpiStartEnd.textContent = `${fmtKrw(periodProfitDiff, true)} (${periodGainPct >= 0 ? '+' : ''}${periodGainPct.toFixed(1)}%)`;
+        kpiStartEnd.textContent = fmtKrw(periodProfitDiff, true);
         kpiStartEnd.className = `m-kpi-val ${signClass(periodProfitDiff)}`;
       }
       if (kpiStartEndSub) {
-        kpiStartEndSub.textContent = `시작 ${first.period.slice(2)} (${fmtKrw(startMv)}) 대비`;
+        const gainSign = periodGainPct >= 0 ? '+' : '';
+        kpiStartEndSub.textContent = `등락 ${gainSign}${periodGainPct.toFixed(1)}% (시작 대비)`;
       }
 
       // 최근 구간 변동
@@ -2555,26 +2729,28 @@
         kpiDeltaSub.textContent = `직전 대비 ${diffSign}${(last.periodRateDiffPct || 0).toFixed(1)}%p`;
       }
 
-      // 최고 (Peak)
+      // 최고 (Peak): 날짜를 % 옆으로 이동하고 금액은 서브행에 온전히 표시하여 말줄임 방지
       const kpiPeak = document.getElementById('mHistKpiPeak');
       const kpiPeakSub = document.getElementById('mHistKpiPeakSub');
       if (kpiPeak) {
-        kpiPeak.textContent = `${fmtPct(peak.returnRatePct)}`;
+        const peakDate = peak.period ? peak.period.slice(2) : '';
+        kpiPeak.innerHTML = `<span>${fmtPct(peak.returnRatePct)}</span><span class="m-kpi-date">${peakDate}</span>`;
         kpiPeak.className = `m-kpi-val ${signClass(peak.profitLossKrw)}`;
       }
       if (kpiPeakSub) {
-        kpiPeakSub.textContent = `최고 ${peak.period.slice(2)} (${fmtKrw(peak.profitLossKrw, true)})`;
+        kpiPeakSub.textContent = fmtKrw(peak.profitLossKrw, true);
       }
 
-      // 최저 (Trough)
+      // 최저 (Trough): 날짜를 % 옆으로 이동하고 금액은 서브행에 온전히 표시하여 말줄임 방지
       const kpiTrough = document.getElementById('mHistKpiTrough');
       const kpiTroughSub = document.getElementById('mHistKpiTroughSub');
       if (kpiTrough) {
-        kpiTrough.textContent = `${fmtPct(trough.returnRatePct)}`;
+        const troughDate = trough.period ? trough.period.slice(2) : '';
+        kpiTrough.innerHTML = `<span>${fmtPct(trough.returnRatePct)}</span><span class="m-kpi-date">${troughDate}</span>`;
         kpiTrough.className = `m-kpi-val ${signClass(trough.profitLossKrw)}`;
       }
       if (kpiTroughSub) {
-        kpiTroughSub.textContent = `최저 ${trough.period.slice(2)} (${fmtKrw(trough.profitLossKrw, true)})`;
+        kpiTroughSub.textContent = fmtKrw(trough.profitLossKrw, true);
       }
 
       // 제목 업데이트
@@ -2848,24 +3024,20 @@
 
     // 토스 스타일 인앱 당겨서 새로고침 (Pull-to-Refresh)
     function initPullToRefresh() {
-      let touchStartY = 0;
-      let touchCurrentY = 0;
-      let isPulling = false;
-      let isRefreshing = false;
-      const PULL_THRESHOLD = 58; // px
-      const MAX_PULL = 90; // px
-
       const ptrWrap = document.getElementById('mPtrWrap');
       const ptrArrow = document.getElementById('mPtrArrow');
       const ptrSpinner = document.getElementById('mPtrSpinner');
       const ptrText = document.getElementById('mPtrText');
-
       if (!ptrWrap) return;
 
+      let touchStartY = 0;
+      let isPulling = false;
+      const PULL_THRESHOLD = 55;
+      const MAX_PULL = 75;
+
       window.addEventListener('touchstart', (e) => {
-        if (isRefreshing) return;
         const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        if (scrollY <= 1) {
+        if (scrollY <= 0 && e.touches.length === 1) {
           touchStartY = e.touches[0].clientY;
           isPulling = true;
         } else {
@@ -2874,67 +3046,50 @@
       }, { passive: true });
 
       window.addEventListener('touchmove', (e) => {
-        if (!isPulling || isRefreshing) return;
-        touchCurrentY = e.touches[0].clientY;
-        const diffY = touchCurrentY - touchStartY;
+        if (!isPulling) return;
+        const currentY = e.touches[0].clientY;
+        const diffY = currentY - touchStartY;
         const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
 
-        if (diffY > 0 && scrollY <= 0) {
-          if (e.cancelable) e.preventDefault();
-          const pullDist = Math.min(diffY * 0.42, MAX_PULL);
-          ptrWrap.style.transition = 'none';
-          ptrWrap.style.height = `${pullDist}px`;
-
-          if (pullDist >= PULL_THRESHOLD) {
-            ptrArrow.classList.add('ready');
-            ptrText.textContent = '손을 놓으면 새로고침';
-          } else {
-            ptrArrow.classList.remove('ready');
-            ptrText.textContent = '아래로 당겨서 새로고침';
-          }
-        } else if (diffY < 0) {
+        // 아래로 스크롤하는 일반 제스처(diffY < 0)이거나 이미 스크롤된 상태면 즉시 풀링 해제
+        if (diffY < 0 || scrollY > 0) {
           isPulling = false;
           ptrWrap.style.height = '0px';
+          return;
         }
-      }, { passive: false });
 
-      const endPull = async () => {
-        if (!isPulling || isRefreshing) return;
+        if (diffY > 10 && scrollY <= 0) {
+          const pullDist = Math.min((diffY - 10) * 0.38, MAX_PULL);
+          ptrWrap.style.transition = 'none';
+          ptrWrap.style.height = `${pullDist}px`;
+          if (pullDist >= PULL_THRESHOLD) {
+            if (ptrArrow) ptrArrow.classList.add('ready');
+            if (ptrText) ptrText.textContent = '손을 놓으면 새로고침';
+          } else {
+            if (ptrArrow) ptrArrow.classList.remove('ready');
+            if (ptrText) ptrText.textContent = '아래로 당겨서 새로고침';
+          }
+        }
+      }, { passive: true });
+
+      const endPull = async (e) => {
+        if (!isPulling) return;
         isPulling = false;
+        const currentY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : 0;
+        const diffY = currentY - touchStartY;
+        const pullDist = Math.min(Math.max(0, (diffY - 10) * 0.38), MAX_PULL);
 
-        const diffY = touchCurrentY - touchStartY;
-        const pullDist = Math.min(diffY * 0.42, MAX_PULL);
+        ptrWrap.style.transition = 'height 0.2s cubic-bezier(0.2, 0.9, 0.3, 1)';
+        ptrWrap.style.height = '0px';
+        if (ptrArrow) ptrArrow.classList.remove('ready');
 
-        if (diffY > 0 && pullDist >= PULL_THRESHOLD) {
-          isRefreshing = true;
-          ptrWrap.style.transition = 'height 0.22s ease';
-          ptrWrap.style.height = '44px';
-          ptrArrow.style.display = 'none';
-          ptrSpinner.style.display = 'block';
-          ptrText.textContent = '최신 데이터 불러오는 중...';
-
+        if (pullDist >= PULL_THRESHOLD) {
           try {
             await loadData(true);
             if (state.activeTab === 'history') {
               await fetchReturnsHistory(true);
             }
-          } finally {
-            setTimeout(() => {
-              ptrWrap.style.transition = 'height 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
-              ptrWrap.style.height = '0px';
-              setTimeout(() => {
-                ptrArrow.style.display = 'block';
-                ptrArrow.classList.remove('ready');
-                ptrSpinner.style.display = 'none';
-                ptrText.textContent = '아래로 당겨서 새로고침';
-                isRefreshing = false;
-              }, 300);
-            }, 200);
-          }
-        } else {
-          ptrWrap.style.transition = 'height 0.2s ease';
-          ptrWrap.style.height = '0px';
-          ptrArrow.classList.remove('ready');
+          } catch (err) {}
         }
       };
 
@@ -2949,9 +3104,25 @@
 
       // 1. 초기 데이터 로드
       loadData();
+      switchMobileTab(state.activeTab);
 
       // 2. 새로고침 버튼
       document.getElementById('btnRefresh').addEventListener('click', () => loadData(true));
+      const brandIconMobile = document.getElementById('brandIconMobile');
+      if (brandIconMobile) {
+        brandIconMobile.addEventListener('click', () => loadData(true));
+      }
+
+      // 2-1. 원금 비교 토글 (디폴트: OFF, 전체 계좌에서만 사용)
+      const capToggle = document.getElementById('mCapitalCompareToggle');
+      if (capToggle) {
+        const isSavedOn = localStorage.getItem('show_capital_compare') === 'true';
+        capToggle.checked = isSavedOn;
+        capToggle.addEventListener('change', () => {
+          localStorage.setItem('show_capital_compare', capToggle.checked ? 'true' : 'false');
+          renderHero();
+        });
+      }
 
       // 3. 계좌 범위 칩 클릭
       document.getElementById('scopeChips').addEventListener('click', (e) => {

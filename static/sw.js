@@ -1,8 +1,7 @@
 // Service Worker for Integrated Stock Portfolio PWA
-const CACHE_NAME = 'stock-pwa-v4';
+const CACHE_NAME = 'stock-pwa-v6';
 const PRECACHE_URLS = [
   '/manifest.json',
-  '/chart.umd.min.js',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-192.png',
@@ -34,8 +33,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. Never cache live financial API endpoints
-  if (url.pathname.startsWith('/api/')) {
+  // 1. Never cache live financial API endpoints or HTML pages
+  if (url.pathname.startsWith('/api/') || url.pathname === '/mobile' || url.pathname === '/' || url.pathname.endsWith('.html')) {
     event.respondWith(fetch(event.request));
     return;
   }

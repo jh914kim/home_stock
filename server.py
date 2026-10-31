@@ -2297,14 +2297,14 @@ class AppHandler(SimpleHTTPRequestHandler):
         raw = target_path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", content_type)
-        if filename == "sw.js":
-            self.send_header("Service-Worker-Allowed", "/")
+        if filename == "sw.js" or filename == "manifest.json" or filename.endswith(".html") or filename.endswith(".js") or filename.endswith(".css"):
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-        elif filename == "manifest.json":
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-        elif filename.endswith(".png"):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+            if filename == "sw.js":
+                self.send_header("Service-Worker-Allowed", "/")
+        elif filename.endswith(".png") or filename.endswith(".ico"):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cache-Control", "public, max-age=86400")
         self.send_header("Content-Length", str(len(raw)))

@@ -265,25 +265,24 @@ body {
   animation: spin360 0.75s linear infinite;
 }
 
-.brand-logo .logo-chart-line {
+.brand-logo .logo-chart-line,
+.brand-icon .logo-chart-line {
   stroke-dasharray: 100;
   stroke-dashoffset: 0;
 }
 
-.brand-logo .logo-chart-area {
-  transform-origin: center 18.5px;
-}
-
-.brand-logo .logo-chart-dot {
-  transform-origin: 20.5px 6.5px;
+.brand-logo .logo-chart-arrow,
+.brand-icon .logo-chart-arrow {
+  transform-origin: 18px 7px;
+  will-change: transform, opacity;
 }
 
 @keyframes chartLineRise {
   0% {
     stroke-dashoffset: 100;
-    opacity: 0.4;
+    opacity: 0.35;
   }
-  15% {
+  25% {
     opacity: 1;
   }
   75%,
@@ -293,46 +292,54 @@ body {
   }
 }
 
-@keyframes chartAreaRise {
-  0%,
-  20% {
+@keyframes chartArrowSurge {
+  0% {
     opacity: 0;
-    transform: scaleY(0.25);
+    transform: translate(-7px, 7px) scale(0.3);
   }
-  75%,
+  40% {
+    opacity: 0.5;
+    transform: translate(-3.5px, 3.5px) scale(0.7);
+  }
+  72% {
+    opacity: 1;
+    transform: translate(1px, -1px) scale(1.25);
+  }
+  88%,
   100% {
     opacity: 1;
-    transform: scaleY(1);
+    transform: translate(0, 0) scale(1);
   }
 }
 
-@keyframes chartDotPop {
-  0%,
-  55% {
-    opacity: 0;
-    transform: scale(0);
+@keyframes brandSurgeUp {
+  0% {
+    transform: translateY(0) scale(1);
   }
-  78% {
-    opacity: 1;
-    transform: scale(1.35);
+  30% {
+    transform: translateY(-2.5px) scale(1.05);
   }
-  92%,
+  65% {
+    transform: translateY(-0.5px) scale(1.02);
+  }
   100% {
-    opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-.brand-logo.is-refreshing .logo-chart-line {
+.brand-logo.is-refreshing,
+.brand-icon.is-refreshing {
+  animation: brandSurgeUp 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) infinite !important;
+}
+
+.brand-logo.is-refreshing .logo-chart-line,
+.brand-icon.is-refreshing .logo-chart-line {
   animation: chartLineRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-.brand-logo.is-refreshing .logo-chart-area {
-  animation: chartAreaRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-
-.brand-logo.is-refreshing .logo-chart-dot {
-  animation: chartDotPop 0.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+.brand-logo.is-refreshing .logo-chart-arrow,
+.brand-icon.is-refreshing .logo-chart-arrow {
+  animation: chartArrowSurge 0.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 .container {

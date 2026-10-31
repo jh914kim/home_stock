@@ -121,17 +121,16 @@ async function fetchDashboard(forceRefresh = false) {
   errorBanner.classList.add("hidden");
   refreshBtn.disabled = true;
 
-  if (forceRefresh) {
-    clearTimeout(refreshDoneTimer);
-    clearTimeout(logoAnimTimer);
-    refreshBtn.classList.remove("is-done");
-    refreshBtn.classList.add("is-refreshing");
-    if (refreshBtnText) refreshBtnText.textContent = "갱신 중";
-    if (brandLogoBtn) {
-      brandLogoBtn.classList.remove("is-refreshing");
-      void brandLogoBtn.offsetWidth;
-      brandLogoBtn.classList.add("is-refreshing");
-    }
+  // 리프레시 UI 통일: 어떤 경로로 불러오든 아이콘 서지 + 리프레시 사이클 일원화
+  clearTimeout(refreshDoneTimer);
+  clearTimeout(logoAnimTimer);
+  refreshBtn.classList.remove("is-done");
+  refreshBtn.classList.add("is-refreshing");
+  if (refreshBtnText) refreshBtnText.textContent = "갱신 중";
+  if (brandLogoBtn) {
+    brandLogoBtn.classList.remove("is-refreshing");
+    void brandLogoBtn.offsetWidth;
+    brandLogoBtn.classList.add("is-refreshing");
   }
 
   const mySeq = ++dashboardReqSeq;
