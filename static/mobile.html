@@ -333,7 +333,7 @@
     }
 
     .scope-chip {
-      padding: 7px 14px;
+      padding: 7px 13px;
       border-radius: 999px;
       font-size: 13px;
       font-weight: 600;
@@ -342,6 +342,10 @@
       border: 1px solid transparent;
       cursor: pointer;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
     }
 
     .scope-chip:active {
@@ -353,6 +357,19 @@
       color: #ffffff;
       font-weight: 700;
       box-shadow: 0 2px 8px rgba(49, 130, 246, 0.25);
+    }
+
+    .m-scope-cnt {
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0.75;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.06);
+    }
+    .scope-chip.active .m-scope-cnt {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
     }
 
     /* 메인 컨테이너 */
@@ -1498,14 +1515,13 @@
   <!-- 계좌 범위 스크롤 필터 -->
   <div class="filter-scroll-wrap">
     <div class="scope-chips" id="scopeChips">
-      <button class="scope-chip active" data-scope="ALL">전체 6개 계좌</button>
-      <button class="scope-chip" data-scope="BROKERAGE">토스 위탁</button>
-      <button class="scope-chip" data-scope="RIA">토스 RIA(공모주)</button>
-      <button class="scope-chip" data-scope="KIS_ALL">한국투자증권 전체</button>
-      <button class="scope-chip" data-scope="KIS_1">한투 위탁</button>
-      <button class="scope-chip" data-scope="KIS_2">한투 ISA</button>
-      <button class="scope-chip" data-scope="KIS_3">한투 연금</button>
-      <button class="scope-chip" data-scope="KIS_4">한투 IRP</button>
+      <button class="scope-chip active" data-scope="ALL">전체 합산 <span class="m-scope-cnt" id="mScopeCountAll">0</span></button>
+      <button class="scope-chip" data-scope="BROKERAGE">토스 종합 <span class="m-scope-cnt" id="mScopeCountBrokerage">0</span></button>
+      <button class="scope-chip" data-scope="RIA">토스 RIA <span class="m-scope-cnt" id="mScopeCountRia">0</span></button>
+      <button class="scope-chip" data-scope="KIS_1">한투 연금저축 <span class="m-scope-cnt" id="mScopeCountKis1">0</span></button>
+      <button class="scope-chip" data-scope="KIS_2">한투 ISA <span class="m-scope-cnt" id="mScopeCountKis2">0</span></button>
+      <button class="scope-chip" data-scope="KIS_3">한투 IRP <span class="m-scope-cnt" id="mScopeCountKis3">0</span></button>
+      <button class="scope-chip" data-scope="KIS_4">한투 위탁 <span class="m-scope-cnt" id="mScopeCountKis4">0</span></button>
     </div>
   </div>
 
@@ -1862,7 +1878,7 @@
   <!-- 하단 고정 바 -->
   <footer class="mobile-footer-bar">
     <div class="footer-left">
-      <span class="footer-status" id="footerScopeText">전체 6개 계좌 조회 중</span>
+      <span class="footer-status" id="footerScopeText">전체 합산 조회 중</span>
     </div>
     <a href="/?view=pc" class="pc-mode-link" id="btnGoPcFooter">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2043,6 +2059,7 @@
     // 렌더링 메인
     function render() {
       if (!state.dashboard) return;
+      try { renderScopeCounts(); } catch (e) { console.error('renderScopeCounts error:', e); }
       try { renderHero(); } catch (e) { console.error('renderHero error:', e); }
       try { renderDistribution(); } catch (e) { console.error('renderDistribution error:', e); }
       try { renderHoldings(); } catch (e) { console.error('renderHoldings error:', e); }
@@ -2051,6 +2068,24 @@
       } else if (state.activeTab === 'history') {
         try { renderMobileHistory(); } catch (e) { console.error('renderMobileHistory error:', e); }
       }
+    }
+
+    // 계좌 필터 칩 개수 뱃지 갱신
+    function renderScopeCounts() {
+      const d = state.dashboard;
+      if (!d) return;
+      const counts = d.counts || {};
+      const setCnt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val !== undefined && val !== null ? val : 0;
+      };
+      setCnt('mScopeCountAll', counts.all);
+      setCnt('mScopeCountBrokerage', counts.brokerage);
+      setCnt('mScopeCountRia', counts.ria);
+      setCnt('mScopeCountKis1', counts.kis1);
+      setCnt('mScopeCountKis2', counts.kis2);
+      setCnt('mScopeCountKis3', counts.kis3);
+      setCnt('mScopeCountKis4', counts.kis4);
     }
 
     // 1. 히어로 카드 렌더링
@@ -2241,14 +2276,28 @@
         const avatarTxt = isOverseasClassified ? (it.symbol || 'US').slice(0, 2).toUpperCase() : (it.name || '주').slice(0, 1);
 
         // 계좌 태그
+        const tag = it.accountTag || '';
         let acctTag = it.shortLabel || '토스';
         let acctClass = 'toss';
-        const rawAcct = (it.accountLabel || it.accountTag || '').toUpperCase();
-        if (rawAcct.includes('RIA')) { acctTag = 'RIA'; acctClass = 'ria'; }
-        else if (rawAcct.includes('ISA')) { acctTag = '한투 ISA'; acctClass = 'kis'; }
-        else if (rawAcct.includes('연금')) { acctTag = '한투 연금'; acctClass = 'kis'; }
-        else if (rawAcct.includes('IRP')) { acctTag = '한투 IRP'; acctClass = 'kis'; }
-        else if (rawAcct.includes('KIS') || rawAcct.includes('한투') || rawAcct.includes('위탁')) { acctTag = '한투'; acctClass = 'kis'; }
+        if (tag === 'BROKERAGE' || (!tag && (it.accountLabel || '').includes('종합'))) {
+          acctTag = '토스 종합';
+          acctClass = 'toss';
+        } else if (tag === 'RIA' || (it.accountLabel || '').includes('RIA')) {
+          acctTag = '토스 RIA';
+          acctClass = 'ria';
+        } else if (tag === 'KIS_1' || (it.accountLabel || '').includes('연금')) {
+          acctTag = '한투 연금';
+          acctClass = 'kis';
+        } else if (tag === 'KIS_2' || (it.accountLabel || '').includes('ISA')) {
+          acctTag = '한투 ISA';
+          acctClass = 'kis';
+        } else if (tag === 'KIS_3' || (it.accountLabel || '').includes('IRP')) {
+          acctTag = '한투 IRP';
+          acctClass = 'kis';
+        } else if (tag === 'KIS_4' || (it.accountLabel || '').includes('위탁')) {
+          acctTag = '한투 위탁';
+          acctClass = 'kis';
+        }
 
         // 해외추종 ETF 뱃지
         const etfBadge = it.isOverseasEtf ? '<span class="account-tag" style="background:#fff0f6; color:#d6336c;">해외ETF</span>' : '';
@@ -3133,7 +3182,17 @@
         chip.classList.add('active');
 
         state.scope = chip.dataset.scope;
-        document.getElementById('footerScopeText').textContent = `${chip.textContent} 조회 중`;
+        const scopeLabels = {
+          ALL: '전체 합산',
+          BROKERAGE: '토스 종합',
+          RIA: '토스 RIA',
+          KIS_1: '한투 연금저축',
+          KIS_2: '한투 ISA',
+          KIS_3: '한투 IRP',
+          KIS_4: '한투 위탁',
+        };
+        const scopeTitle = scopeLabels[state.scope] || chip.textContent.trim();
+        document.getElementById('footerScopeText').textContent = `${scopeTitle} 조회 중`;
         loadData(false);
       });
 
