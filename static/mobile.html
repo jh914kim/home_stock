@@ -103,32 +103,6 @@
       animation: spin 0.65s linear infinite;
     }
 
-    /* 상단 실시간 데이터 동기화 알림 바 (로딩 진행 표시) */
-    .m-sync-bar {
-      background: linear-gradient(90deg, #e7f5ff 0%, #edf5ff 100%);
-      border-bottom: 1px solid #d0ebff;
-      padding: 7px 16px;
-      animation: fadeInDown 0.2s ease-out;
-    }
-    .m-sync-inner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: #1971c2;
-    }
-    .m-sync-spinner {
-      width: 13px;
-      height: 13px;
-      border: 2px solid rgba(25, 113, 194, 0.25);
-      border-top-color: #1971c2;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      flex-shrink: 0;
-    }
-
     /* 하단 데이터 로딩 인디케이터 & 스켈레톤 상태 */
     .m-section-loader {
       background: rgba(255, 255, 255, 0.92);
@@ -1396,14 +1370,6 @@
     </div>
   </div>
 
-  <!-- 실시간 데이터 동기화 알림 바 (로딩 진행 표시) -->
-  <div class="m-sync-bar" id="mSyncBar" style="display: none;">
-    <div class="m-sync-inner">
-      <div class="m-sync-spinner"></div>
-      <span id="mSyncText">최신 시세 및 계좌 데이터를 불러오는 중...</span>
-    </div>
-  </div>
-
   <!-- 계좌 범위 스크롤 필터 -->
   <div class="filter-scroll-wrap">
     <div class="scope-chips" id="scopeChips">
@@ -1904,16 +1870,8 @@
     async function loadData(force = false) {
       const btn = document.getElementById('btnRefresh');
       if (btn) btn.classList.add('spinning');
-      const syncBar = document.getElementById('mSyncBar');
-      const syncText = document.getElementById('mSyncText');
       const chartsLoader = document.getElementById('mChartsLoader');
 
-      if (syncBar) {
-        if (syncText) {
-          syncText.textContent = force ? '최신 시세 및 계좌 데이터를 새로고침 중...' : '계좌 데이터를 동기화하는 중...';
-        }
-        syncBar.style.display = 'block';
-      }
       if (chartsLoader && state.activeTab === 'charts') {
         chartsLoader.style.display = 'flex';
       }
@@ -1949,7 +1907,6 @@
         setLoading(false);
         if (btn) btn.classList.remove('spinning');
         document.body.classList.remove('data-refreshing');
-        if (syncBar) syncBar.style.display = 'none';
         if (chartsLoader) chartsLoader.style.display = 'none';
       }
     }
