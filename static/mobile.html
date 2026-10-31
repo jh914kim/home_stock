@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="icon" type="image/png" href="/icon-192.png">
   <title>통합 주식 계좌 리포트 | 모바일</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';"></script>
   <style>
     :root {
       --bg: #f2f4f6;
@@ -46,6 +46,7 @@
       max-width: 100vw;
       overflow-x: hidden;
       width: 100%;
+      overscroll-behavior-y: contain; /* 브라우저 기본 하드 리로드 방지 (앱 스타일 인앱 당겨서 새로고침 지원) */
     }
 
     body {
@@ -56,6 +57,134 @@
       -webkit-font-smoothing: antialiased;
       padding-bottom: calc(70px + var(--safe-bottom));
       user-select: none;
+    }
+
+    /* 토스 스타일 인앱 당겨서 새로고침 (Pull-to-Refresh) */
+    .m-ptr-wrap {
+      overflow: hidden;
+      height: 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      will-change: height;
+      user-select: none;
+    }
+    .m-ptr-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+    .m-ptr-icon-wrap {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .m-ptr-arrow {
+      color: var(--toss-blue);
+      transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+    .m-ptr-arrow.ready {
+      transform: rotate(180deg);
+      color: #12b886;
+    }
+    .m-ptr-spinner {
+      width: 17px;
+      height: 17px;
+      border: 2.2px solid rgba(49, 130, 246, 0.22);
+      border-top-color: var(--toss-blue);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+
+    /* 상단 실시간 데이터 동기화 알림 바 (로딩 진행 표시) */
+    .m-sync-bar {
+      background: linear-gradient(90deg, #e7f5ff 0%, #edf5ff 100%);
+      border-bottom: 1px solid #d0ebff;
+      padding: 7px 16px;
+      animation: fadeInDown 0.2s ease-out;
+    }
+    .m-sync-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #1971c2;
+    }
+    .m-sync-spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(25, 113, 194, 0.25);
+      border-top-color: #1971c2;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* 하단 데이터 로딩 인디케이터 & 스켈레톤 상태 */
+    .m-section-loader {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid #d0ebff;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1971c2;
+      box-shadow: 0 2px 8px rgba(33, 37, 41, 0.04);
+      margin-bottom: 8px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .data-refreshing .m-card:not(.hero-card),
+    .data-refreshing .m-chart-card {
+      opacity: 0.72;
+      transition: opacity 0.2s ease;
+    }
+
+    .m-loading-state-card {
+      background: #ffffff;
+      border-radius: var(--radius-md);
+      border: 1px dashed #ced4da;
+      padding: 32px 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      animation: pulseLight 1.8s infinite ease-in-out;
+    }
+    .m-loading-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .m-loading-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseLight {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
     }
 
     /* 상단 고정 헤더 */
@@ -1253,6 +1382,28 @@
     </div>
   </header>
 
+  <!-- 당겨서 새로고침 인디케이터 (Toss 스타일 In-App Pull to Refresh) -->
+  <div class="m-ptr-wrap" id="mPtrWrap">
+    <div class="m-ptr-content">
+      <div class="m-ptr-icon-wrap" id="mPtrIconWrap">
+        <svg class="m-ptr-arrow" id="mPtrArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="19 12 12 19 5 12"></polyline>
+        </svg>
+        <div class="m-ptr-spinner" id="mPtrSpinner" style="display: none;"></div>
+      </div>
+      <span class="m-ptr-text" id="mPtrText">아래로 당겨서 새로고침</span>
+    </div>
+  </div>
+
+  <!-- 실시간 데이터 동기화 알림 바 (로딩 진행 표시) -->
+  <div class="m-sync-bar" id="mSyncBar" style="display: none;">
+    <div class="m-sync-inner">
+      <div class="m-sync-spinner"></div>
+      <span id="mSyncText">최신 시세 및 계좌 데이터를 불러오는 중...</span>
+    </div>
+  </div>
+
   <!-- 계좌 범위 스크롤 필터 -->
   <div class="filter-scroll-wrap">
     <div class="scope-chips" id="scopeChips">
@@ -1422,12 +1573,21 @@
       </div>
 
       <div class="stock-list" id="stockList">
-        <!-- 동적 렌더링 -->
+        <div class="m-loading-state-card" id="mHoldingsLoading">
+          <div class="m-sync-spinner" style="width: 22px; height: 22px; border-width: 2.5px;"></div>
+          <div class="m-loading-title">보유 종목 데이터를 불러오는 중입니다</div>
+          <div class="m-loading-sub">실시간 현재가 및 손익을 동기화하고 있습니다...</div>
+        </div>
       </div>
     </section>
 
     <!-- 3-B. 모바일 최적화 분석 차트 섹션 (3종) -->
     <div id="mSectionCharts" style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- 차트 갱신 중 로딩 안내 바 -->
+      <div class="m-section-loader" id="mChartsLoader" style="display: none;">
+        <div class="m-sync-spinner"></div>
+        <span>비중 및 수익 기여도 차트 데이터를 집계하고 있습니다...</span>
+      </div>
       <!-- 차트 1: 포트폴리오 종목 비중 (도넛 + TOP 5) -->
       <section class="m-chart-card">
         <div class="m-chart-head">
@@ -1586,8 +1746,10 @@
           <span style="font-size: 12px; font-weight: 700; color: var(--toss-blue);" id="mHistCountBadge">0건</span>
         </div>
         <div class="m-hist-timeline" id="mHistTimelineList">
-          <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
-            데이터를 불러오는 중입니다...
+          <div class="m-loading-state-card" id="mHistTimelineLoading">
+            <div class="m-sync-spinner" style="width: 22px; height: 22px; border-width: 2.5px;"></div>
+            <div class="m-loading-title">구간별 수익률 데이터를 분석 중입니다</div>
+            <div class="m-loading-sub">과거 일봉 데이터 및 체결 내역을 계산하고 있습니다...</div>
           </div>
         </div>
         <button class="m-btn-load-more" id="mHistLoadMoreBtn" style="display: none;">
@@ -1741,7 +1903,22 @@
     // 데이터 가져오기
     async function loadData(force = false) {
       const btn = document.getElementById('btnRefresh');
-      btn.classList.add('spinning');
+      if (btn) btn.classList.add('spinning');
+      const syncBar = document.getElementById('mSyncBar');
+      const syncText = document.getElementById('mSyncText');
+      const chartsLoader = document.getElementById('mChartsLoader');
+
+      if (syncBar) {
+        if (syncText) {
+          syncText.textContent = force ? '최신 시세 및 계좌 데이터를 새로고침 중...' : '계좌 데이터를 동기화하는 중...';
+        }
+        syncBar.style.display = 'block';
+      }
+      if (chartsLoader && state.activeTab === 'charts') {
+        chartsLoader.style.display = 'flex';
+      }
+      document.body.classList.add('data-refreshing');
+
       if (!state.dashboard) setLoading(true);
 
       try {
@@ -1759,7 +1936,7 @@
 
         if (state.activeTab === 'history') {
           await fetchReturnsHistory(force);
-        } else {
+        } else if (force) {
           state.historyData = null;
         }
 
@@ -1770,7 +1947,10 @@
         showToast('데이터 조회 실패: ' + err.message);
       } finally {
         setLoading(false);
-        btn.classList.remove('spinning');
+        if (btn) btn.classList.remove('spinning');
+        document.body.classList.remove('data-refreshing');
+        if (syncBar) syncBar.style.display = 'none';
+        if (chartsLoader) chartsLoader.style.display = 'none';
       }
     }
 
@@ -2282,10 +2462,18 @@
     async function fetchReturnsHistory(forceRefresh = false) {
       const mySeq = ++historyReqSeq;
       const listEl = document.getElementById('mHistTimelineList');
-      if (!state.historyData && listEl) {
+      const periodBadge = document.getElementById('mHistPeriodBadge');
+
+      if (periodBadge) {
+        periodBadge.innerHTML = `<span class="m-sync-spinner" style="display:inline-block; vertical-align:middle; width:10px; height:10px; margin-right:4px;"></span>분석 중...`;
+      }
+
+      if (listEl && (!state.historyData || forceRefresh)) {
         listEl.innerHTML = `
-          <div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">
-            구간별 수익률 데이터를 분석 중입니다...
+          <div class="m-loading-state-card">
+            <div class="m-sync-spinner" style="width: 22px; height: 22px; border-width: 2.5px;"></div>
+            <div class="m-loading-title">구간별 수익률 데이터를 정밀 분석 중입니다</div>
+            <div class="m-loading-sub">과거 일봉 캔들과 계좌 체결 시세를 대조하여 계산하고 있습니다...</div>
           </div>
         `;
       }
@@ -2701,8 +2889,107 @@
       }
     }
 
+    // 토스 스타일 인앱 당겨서 새로고침 (Pull-to-Refresh)
+    function initPullToRefresh() {
+      let touchStartY = 0;
+      let touchCurrentY = 0;
+      let isPulling = false;
+      let isRefreshing = false;
+      const PULL_THRESHOLD = 58; // px
+      const MAX_PULL = 90; // px
+
+      const ptrWrap = document.getElementById('mPtrWrap');
+      const ptrArrow = document.getElementById('mPtrArrow');
+      const ptrSpinner = document.getElementById('mPtrSpinner');
+      const ptrText = document.getElementById('mPtrText');
+
+      if (!ptrWrap) return;
+
+      window.addEventListener('touchstart', (e) => {
+        if (isRefreshing) return;
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        if (scrollY <= 1) {
+          touchStartY = e.touches[0].clientY;
+          isPulling = true;
+        } else {
+          isPulling = false;
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isPulling || isRefreshing) return;
+        touchCurrentY = e.touches[0].clientY;
+        const diffY = touchCurrentY - touchStartY;
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
+        if (diffY > 0 && scrollY <= 0) {
+          if (e.cancelable) e.preventDefault();
+          const pullDist = Math.min(diffY * 0.42, MAX_PULL);
+          ptrWrap.style.transition = 'none';
+          ptrWrap.style.height = `${pullDist}px`;
+
+          if (pullDist >= PULL_THRESHOLD) {
+            ptrArrow.classList.add('ready');
+            ptrText.textContent = '손을 놓으면 새로고침';
+          } else {
+            ptrArrow.classList.remove('ready');
+            ptrText.textContent = '아래로 당겨서 새로고침';
+          }
+        } else if (diffY < 0) {
+          isPulling = false;
+          ptrWrap.style.height = '0px';
+        }
+      }, { passive: false });
+
+      const endPull = async () => {
+        if (!isPulling || isRefreshing) return;
+        isPulling = false;
+
+        const diffY = touchCurrentY - touchStartY;
+        const pullDist = Math.min(diffY * 0.42, MAX_PULL);
+
+        if (diffY > 0 && pullDist >= PULL_THRESHOLD) {
+          isRefreshing = true;
+          ptrWrap.style.transition = 'height 0.22s ease';
+          ptrWrap.style.height = '44px';
+          ptrArrow.style.display = 'none';
+          ptrSpinner.style.display = 'block';
+          ptrText.textContent = '최신 데이터 불러오는 중...';
+
+          try {
+            await loadData(true);
+            if (state.activeTab === 'history') {
+              await fetchReturnsHistory(true);
+            }
+          } finally {
+            setTimeout(() => {
+              ptrWrap.style.transition = 'height 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+              ptrWrap.style.height = '0px';
+              setTimeout(() => {
+                ptrArrow.style.display = 'block';
+                ptrArrow.classList.remove('ready');
+                ptrSpinner.style.display = 'none';
+                ptrText.textContent = '아래로 당겨서 새로고침';
+                isRefreshing = false;
+              }, 300);
+            }, 200);
+          }
+        } else {
+          ptrWrap.style.transition = 'height 0.2s ease';
+          ptrWrap.style.height = '0px';
+          ptrArrow.classList.remove('ready');
+        }
+      };
+
+      window.addEventListener('touchend', endPull, { passive: true });
+      window.addEventListener('touchcancel', endPull, { passive: true });
+    }
+
     // 이벤트 리스너 등록
     document.addEventListener('DOMContentLoaded', () => {
+      // 0. 토스 스타일 인앱 당겨서 새로고침 등록
+      initPullToRefresh();
+
       // 1. 초기 데이터 로드
       loadData();
 

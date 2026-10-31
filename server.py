@@ -2171,6 +2171,7 @@ ALLOWED_STATIC_FILES = {
     "/icon-maskable-512.png": ("icon-maskable-512.png", "image/png"),
     "/apple-touch-icon.png": ("icon-192.png", "image/png"),
     "/favicon.ico": ("icon-192.png", "image/png"),
+    "/chart.umd.min.js": ("chart.umd.min.js", "application/javascript; charset=utf-8"),
 }
 
 PUBLIC_PWA_FILES = {
@@ -2182,6 +2183,7 @@ PUBLIC_PWA_FILES = {
     "/icon-maskable-512.png",
     "/apple-touch-icon.png",
     "/favicon.ico",
+    "/chart.umd.min.js",
 }
 
 _RATE_LIMIT_LOCK = threading.Lock()

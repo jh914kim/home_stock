@@ -1,7 +1,8 @@
 // Service Worker for Integrated Stock Portfolio PWA
-const CACHE_NAME = 'stock-pwa-v3';
+const CACHE_NAME = 'stock-pwa-v4';
 const PRECACHE_URLS = [
   '/manifest.json',
+  '/chart.umd.min.js',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-192.png',
