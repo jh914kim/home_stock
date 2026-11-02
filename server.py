@@ -1,4 +1,5 @@
 import base64
+import datetime
 import hashlib
 import hmac
 import json
@@ -257,21 +258,118 @@ def load_env():
         return result
 
 
+def summarize_ria_purchases(purchases: list, fx_rate: float = 1350.0) -> dict:
+    count = len(purchases or [])
+    total_krw = 0.0
+    syms = set()
+    for p in purchases or []:
+        sym = (p.get("symbol") or "").strip().upper()
+        if sym:
+            syms.add(sym)
+        curr = p.get("currency") or ("KRW" if is_kr_symbol(sym) else "USD")
+        amt = to_float(p.get("purchaseAmount"), 0.0)
+        if amt <= 0:
+            amt = to_float(p.get("quantity"), 0.0) * to_float(p.get("price"), 0.0)
+        if curr == "USD":
+            total_krw += amt * fx_rate
+        else:
+            total_krw += amt
+    return {
+        "count": count,
+        "totalAmountKrw": round(total_krw, 0),
+        "distinctSymbolsCount": len(syms),
+    }
+
+
+def recompute_ria_items(purchases: list, sales: list = None) -> list:
+    if not purchases:
+        return []
+    sales = sales or []
+    sold_by_sym = {}
+    for s in sales:
+        sym = (s.get("symbol") or "").strip().upper()
+        if sym:
+            sold_by_sym[sym] = sold_by_sym.get(sym, 0.0) + to_float(s.get("quantity"), 0.0)
+
+    purch_by_sym = {}
+    for p in purchases:
+        sym = (p.get("symbol") or "").strip().upper()
+        qty = to_float(p.get("quantity"), 0.0)
+        if not sym or qty <= 0:
+            continue
+        purch_by_sym.setdefault(sym, []).append(p)
+
+    items = []
+    for sym, plist in purch_by_sym.items():
+        plist = sorted(plist, key=lambda x: str(x.get("boughtAt") or x.get("purchaseDate") or ""))
+        total_sold = sold_by_sym.get(sym, 0.0)
+        name = plist[0].get("name") or sym
+        curr = plist[0].get("currency") or ("KRW" if is_kr_symbol(sym) else "USD")
+
+        active_lots = []
+        for p in plist:
+            p_qty = to_float(p.get("quantity"), 0.0)
+            p_price = to_float(p.get("price"), 0.0)
+            p_date = (p.get("boughtAt") or p.get("purchaseDate") or "")[:10]
+            if total_sold >= p_qty:
+                total_sold -= p_qty
+                continue
+            elif total_sold > 0:
+                rem_qty = p_qty - total_sold
+                total_sold = 0.0
+                active_lots.append({
+                    "date": p_date,
+                    "quantity": rem_qty,
+                    "price": p_price,
+                })
+            else:
+                active_lots.append({
+                    "date": p_date,
+                    "quantity": p_qty,
+                    "price": p_price,
+                })
+
+        rem_total_qty = sum(l["quantity"] for l in active_lots)
+        if rem_total_qty <= 0:
+            continue
+
+        rem_total_amt = sum(l["quantity"] * l["price"] for l in active_lots)
+        avg_price = rem_total_amt / rem_total_qty if rem_total_qty > 0 else 0.0
+        earliest_date = active_lots[0]["date"] if active_lots else ""
+
+        items.append({
+            "symbol": sym,
+            "name": name,
+            "currency": curr,
+            "quantity": rem_total_qty,
+            "averagePurchasePrice": round(avg_price, 4 if curr == "USD" else 0),
+            "purchaseAmount": round(rem_total_amt, 2 if curr == "USD" else 0),
+            "purchaseDate": earliest_date,
+            "lots": active_lots,
+        })
+    return items
+
+
 def load_ria_holdings():
     if not RIA_FILE.exists():
-        return {"cashKrw": 0.0, "cashUsd": 0.0, "items": [], "sales": []}
+        return {"cashKrw": 0.0, "cashUsd": 0.0, "items": [], "purchases": [], "sales": []}
     try:
         data = json.loads(RIA_FILE.read_text(encoding="utf-8"))
         if isinstance(data, list):
-            return {"cashKrw": 0.0, "cashUsd": 0.0, "items": data, "sales": []}
-        return {
-            "cashKrw": float(data.get("cashKrw", 0.0)),
-            "cashUsd": float(data.get("cashUsd", 0.0)),
-            "items": data.get("items", []),
-            "sales": data.get("sales", []),
-        }
+            res = {"cashKrw": 0.0, "cashUsd": 0.0, "items": data, "purchases": [], "sales": []}
+        else:
+            res = {
+                "cashKrw": float(data.get("cashKrw", 0.0)),
+                "cashUsd": float(data.get("cashUsd", 0.0)),
+                "items": data.get("items", []),
+                "purchases": data.get("purchases", []),
+                "sales": data.get("sales", []),
+            }
+        if res.get("purchases"):
+            res["items"] = recompute_ria_items(res["purchases"], res.get("sales", []))
+        return res
     except Exception:
-        return {"cashKrw": 0.0, "cashUsd": 0.0, "items": [], "sales": []}
+        return {"cashKrw": 0.0, "cashUsd": 0.0, "items": [], "purchases": [], "sales": []}
 
 
 def build_transfer_sell_orders(sales: list) -> list:
@@ -666,6 +764,50 @@ class KisApiClient:
         self._balance_cache = {"ts": 0.0, "data": None}
         self._orders_cache = {}
         self._inferred_dates = {}
+        self._start_auto_renewal_daemon()
+
+    def _get_token_key(self, acc):
+        appkey = (acc.get("appkey") or "").strip()
+        cano = (acc.get("cano") or "").strip()
+        if appkey:
+            return f"key_{appkey[:12]}"
+        return cano or "default"
+
+    def _start_auto_renewal_daemon(self):
+        """만료 전 사전 자동 갱신 백그라운드 데몬 (10분마다 주기적 점검, 만료 2시간 전 자동 재발급)."""
+        def _worker():
+            time.sleep(8)
+            while True:
+                try:
+                    self.auto_renew_tokens_if_needed(lead_time_seconds=7200)
+                except Exception as e:
+                    pass
+                time.sleep(600)
+
+        t = threading.Thread(target=_worker, daemon=True, name="KisTokenAutoRenewal")
+        t.start()
+
+    def auto_renew_tokens_if_needed(self, lead_time_seconds=7200):
+        """만료 예정 시점(기본 2시간 전) 도래 시 사전에 자동으로 토큰을 발급/갱신."""
+        configs = self.get_account_configs()
+        if not configs:
+            return
+        now = time.time()
+        for acc in configs:
+            try:
+                tokens = self._load_tokens()
+                token_key = self._get_token_key(acc)
+                cano = acc.get("cano", "")
+                tinfo = tokens.get(token_key) or tokens.get(cano) or {}
+                exp = tinfo.get("expires_at", 0)
+                if not tinfo.get("access_token") or exp <= now + lead_time_seconds:
+                    label = acc.get("label") or acc.get("id")
+                    rem_hours = max(0.0, (exp - now) / 3600.0)
+                    print(f"[KIS Auto-Renew] 계좌 {label}({cano}) 토큰 사전 자동 갱신 진행 (잔여: {rem_hours:.1f}시간)...")
+                    self.get_token(acc, force_refresh=True)
+                    print(f"[KIS Auto-Renew] 계좌 {label}({cano}) 토큰 사전 자동 갱신 완료!")
+            except Exception as e:
+                print(f"[KIS Auto-Renew] 계좌 {acc.get('id')} 사전 갱신 오류: {e}")
 
     def get_account_configs(self):
         env = load_env()
@@ -741,13 +883,16 @@ class KisApiClient:
         except Exception:
             pass
 
-    def get_token(self, acc):
-        cano = acc["cano"]
+    def get_token(self, acc, force_refresh=False):
+        token_key = self._get_token_key(acc)
+        cano = acc.get("cano", "")
         now = time.time()
         with self._lock:
             tokens = self._load_tokens()
-            if cano in tokens and tokens[cano].get("expires_at", 0) > now + 300:
-                return tokens[cano]["access_token"]
+            token_info = tokens.get(token_key) or tokens.get(cano) or {}
+            # 강제 갱신이 아니고, 최소 10분 이상 유효 기간이 남아있다면 캐시된 토큰 사용
+            if not force_refresh and token_info.get("access_token") and token_info.get("expires_at", 0) > now + 600:
+                return token_info["access_token"]
 
             req = urllib.request.Request(
                 f"{KIS_BASE_URL}/oauth2/tokenP",
@@ -756,23 +901,38 @@ class KisApiClient:
                     "appkey": acc["appkey"],
                     "appsecret": acc["appsecret"],
                 }).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json; charset=utf-8"},
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
+
             tok = data["access_token"]
             exp = int(data.get("expires_in", 86400))
-            tokens[cano] = {
+            exp_time = now + exp
+            exp_str = data.get("access_token_token_expired")
+            if exp_str:
+                try:
+                    dt = datetime.datetime.strptime(exp_str.strip(), "%Y-%m-%d %H:%M:%S")
+                    exp_time = dt.timestamp()
+                except Exception:
+                    pass
+
+            token_data = {
                 "access_token": tok,
-                "expires_at": now + exp,
+                "expires_at": exp_time,
+                "expires_at_str": exp_str or time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(exp_time)),
                 "issued_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "appkey_prefix": acc["appkey"][:6] if acc.get("appkey") else "",
             }
+            tokens[token_key] = token_data
+            if cano:
+                tokens[cano] = token_data
             self._save_tokens(tokens)
             return tok
 
-    def request_get(self, acc, path, tr_id, params):
-        tok = self.get_token(acc)
+    def request_get(self, acc, path, tr_id, params, tr_cont="", with_headers=False):
+        tok = self.get_token(acc, force_refresh=False)
         qs = urllib.parse.urlencode(params)
         url = f"{KIS_BASE_URL}{path}?{qs}"
         headers = {
@@ -783,22 +943,55 @@ class KisApiClient:
             "tr_id": tr_id,
             "custtype": "P",
         }
+        if tr_cont:
+            headers["tr_cont"] = tr_cont
         for attempt in range(4):
             try:
                 req = urllib.request.Request(url, headers=headers, method="GET")
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
+                    resp_tr_cont = (resp.headers.get("tr_cont") or "").strip()
+
+                # 토큰 만료/유효성 오류 감지 시 즉시 자동 재발급 후 재시도
+                msg_cd = res.get("msg_cd", "")
+                msg1 = res.get("msg1", "")
+                is_token_expired = (
+                    msg_cd in ("EGW00121", "EGW00122", "EGW00123", "EGW00124", "EGW00125")
+                    or "만료된 token" in msg1
+                    or "유효하지 않은 token" in msg1
+                    or ("토큰" in msg1 and "만료" in msg1)
+                )
+                if is_token_expired and attempt < 3:
+                    print(f"[KIS] 토큰 만료 감지 ({msg_cd}: {msg1}). 즉시 자동 재발급 후 재시도...")
+                    tok = self.get_token(acc, force_refresh=True)
+                    headers["authorization"] = f"Bearer {tok}"
+                    time.sleep(0.5)
+                    continue
+
                 # Retry if KIS returns SESSION FULL (rt_cd == "9")
                 if res.get("rt_cd") == "9" and attempt < 3:
                     time.sleep(0.65 * (attempt + 1))
                     continue
-                return res
+                return (res, resp_tr_cont) if with_headers else res
+
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403) and attempt < 3:
+                    print(f"[KIS] HTTP {e.code} 인증 오류 감지. 즉시 토큰 자동 재발급 후 재시도...")
+                    tok = self.get_token(acc, force_refresh=True)
+                    headers["authorization"] = f"Bearer {tok}"
+                    time.sleep(0.5)
+                    continue
+                if attempt < 3:
+                    time.sleep(0.65 * (attempt + 1))
+                else:
+                    return ({}, "") if with_headers else {}
+
             except Exception:
                 if attempt < 3:
                     time.sleep(0.65 * (attempt + 1))
                 else:
-                    return {}
-        return {}
+                    return ({}, "") if with_headers else {}
+        return ({}, "") if with_headers else {}
 
     def fetch_all_accounts_data(self, force=False):
         now = time.time()
@@ -939,34 +1132,56 @@ class KisApiClient:
             return []
 
         raw_rows = []
-        # 1) Recent 3 months (TTTC8001R) + 2) Past 1 year (CTSC9115R) + 3) Past 2-3 years (CTSC9115R)
-        for tr_id, s_dt, e_dt in [
-            ("TTTC8001R", "20260727", "20261231"),
-            ("CTSC9115R", "20250727", "20260726"),
-            ("CTSC9115R", "20240727", "20250726"),
-            ("CTSC9115R", "20230727", "20240726"),
-        ]:
-            res = self.request_get(
-                acc,
-                "/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
-                tr_id,
-                {
-                    "CANO": acc["cano"],
-                    "ACNT_PRDT_CD": acc["prdt"],
-                    "INQR_STRT_DT": s_dt,
-                    "INQR_END_DT": e_dt,
-                    "SLL_BUY_DVSN_CD": "00",
-                    "INQR_DVSN": "00",
-                    "PDNO": "",
-                    "CCLD_DVSN": "01",
-                    "ORD_GNO_BRNO": "",
-                    "ODNO": "",
-                    "INQR_DVSN_3": "00",
-                    "INQR_DVSN_1": "",
-                    "CTX_AREA_FK100": "",
-                    "CTX_AREA_NK100": "",
-                },
-            )
+        # 1) Recent 3 months (TTTC8001R) + 2) older yearly windows (CTSC9115R, up to ~4 years)
+        today = datetime.date.today()
+        recent_start = today - datetime.timedelta(days=89)
+        windows = [("TTTC8001R", recent_start, today)]
+        w_end = recent_start - datetime.timedelta(days=1)
+        for _ in range(4):
+            w_start = w_end - datetime.timedelta(days=364)
+            windows.append(("CTSC9115R", w_start, w_end))
+            w_end = w_start - datetime.timedelta(days=1)
+
+        def _paged_rows():
+            for tr_id, s_d, e_d in windows:
+                s_dt, e_dt = s_d.strftime("%Y%m%d"), e_d.strftime("%Y%m%d")
+                fk, nk, cont = "", "", ""
+                for _page in range(40):
+                    res, resp_cont = self.request_get(
+                        acc,
+                        "/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+                        tr_id,
+                        {
+                            "CANO": acc["cano"],
+                            "ACNT_PRDT_CD": acc["prdt"],
+                            "INQR_STRT_DT": s_dt,
+                            "INQR_END_DT": e_dt,
+                            "SLL_BUY_DVSN_CD": "00",
+                            "INQR_DVSN": "00",
+                            "PDNO": "",
+                            "CCLD_DVSN": "01",
+                            "ORD_GNO_BRNO": "",
+                            "ODNO": "",
+                            "INQR_DVSN_3": "00",
+                            "INQR_DVSN_1": "",
+                            "CTX_AREA_FK100": fk,
+                            "CTX_AREA_NK100": nk,
+                        },
+                        tr_cont=cont,
+                        with_headers=True,
+                    )
+                    for row in res.get("output1") or []:
+                        yield row
+                    fk = (res.get("ctx_area_fk100") or "").strip()
+                    nk = (res.get("ctx_area_nk100") or "").strip()
+                    time.sleep(0.25)
+                    if resp_cont in ("F", "M") and (fk or nk):
+                        cont = "N"
+                    else:
+                        break
+
+        if True:
+            res = {"output1": list(_paged_rows())}
             for r in res.get("output1") or []:
                 fq = to_float(r.get("tot_ccld_qty"), 0.0)
                 fa = to_float(r.get("tot_ccld_amt"), 0.0)
@@ -1007,7 +1222,6 @@ class KisApiClient:
                         "tax": 0.0,
                     },
                 })
-            time.sleep(0.25)
 
         raw_rows.sort(key=lambda x: x["orderedAt"], reverse=True)
         self._orders_cache[acc_id] = {"ts": now, "orders": raw_rows}
@@ -1143,6 +1357,7 @@ def build_ria_enriched_items(ria_data, usd_krw_rate):
             "accountTag": "RIA",
             "accountLabel": "RIA 계좌",
             "purchaseDate": purch_date,
+            "lots": it.get("lots"),
             "marketCountry": country,
             "currency": curr,
             "quantity": qty,
@@ -1678,6 +1893,8 @@ def build_dashboard_data(account_scope="ALL", force_accounts=False):
             "cashKrw": ria_cash_krw,
             "cashUsd": ria_cash_usd,
             "items": ria_items,
+            "purchases": ria_data.get("purchases") or [],
+            "purchasesSummary": summarize_ria_purchases(ria_data.get("purchases") or [], usd_krw_rate),
             "sales": ria_data.get("sales") or [],
             "salesSummary": summarize_ria_sales(ria_data.get("sales") or []),
         },
@@ -1889,6 +2106,26 @@ def build_returns_history(account_scope="ALL", pages=4, force_refresh=False):
         date_activated_items.extend(ria_held_items)
     if include_kis_3:
         date_activated_items.extend(kis_items_by_acc.get("KIS_3") or [])
+
+    # Expand multi-lot holdings (same symbol bought on several dates) into one pseudo-item per lot
+    expanded_items = []
+    for dit in date_activated_items:
+        lots = dit.get("lots") or []
+        if not lots:
+            expanded_items.append(dit)
+            continue
+        for lot in lots:
+            lq = to_float(lot.get("quantity"), 0.0)
+            lp = to_float(lot.get("price"), 0.0)
+            if lq <= 0:
+                continue
+            sub = dict(dit)
+            sub["quantity"] = lq
+            sub["averagePurchasePrice"] = lp
+            sub["purchaseAmount"] = lq * lp
+            sub["purchaseDate"] = (lot.get("date") or dit.get("purchaseDate") or "").strip()
+            expanded_items.append(sub)
+    date_activated_items = expanded_items
 
     all_needed_symbols = set()
     sym_currency = {}
@@ -2481,6 +2718,72 @@ class AppHandler(SimpleHTTPRequestHandler):
                 ria = load_ria_holdings()
                 action = body.get("action", "upsert_item")
 
+                if action == "upsert_purchase":
+                    pid = (body.get("id") or "").strip()
+                    sym = (body.get("symbol") or "").strip().upper()
+                    raw_name = (body.get("name") or "").strip()
+                    s_info = toss_client.resolve_stock_info_map([sym]).get(sym, {}) if sym else {}
+                    if not raw_name or raw_name.upper() == sym:
+                        name = s_info.get("name") or sym
+                    else:
+                        name = raw_name
+                    curr = (
+                        s_info.get("currency")
+                        or ("KRW" if is_kr_symbol(sym) else None)
+                        or body.get("currency")
+                        or "USD"
+                    )
+                    qty = to_float(body.get("quantity"), 0.0)
+                    price = to_float(body.get("price"), 0.0)
+                    purch_amt = to_float(body.get("purchaseAmount"), 0.0)
+                    bought_at = (body.get("boughtAt") or body.get("purchaseDate") or "").strip()
+
+                    if not sym or qty <= 0:
+                        self._send_json({"error": "종목코드 및 수량(0보다 큰 수)을 입력해 주세요."}, status=400)
+                        return
+
+                    if purch_amt > 0 and price <= 0:
+                        price = purch_amt / qty
+                    elif price > 0 and purch_amt <= 0:
+                        purch_amt = qty * price
+
+                    if not bought_at:
+                        bought_at = datetime.now().strftime("%Y-%m-%d")
+
+                    purchases = ria.get("purchases", [])
+                    if not pid:
+                        pid = f"ria_buy_{sym}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{len(purchases)+1}"
+
+                    found_idx = next((i for i, p in enumerate(purchases) if p.get("id") == pid), None)
+                    p_obj = {
+                        "id": pid,
+                        "symbol": sym,
+                        "name": name,
+                        "currency": curr,
+                        "boughtAt": bought_at,
+                        "quantity": qty,
+                        "price": price,
+                        "purchaseAmount": purch_amt,
+                    }
+                    if found_idx is not None:
+                        purchases[found_idx] = p_obj
+                    else:
+                        purchases.append(p_obj)
+
+                    ria["purchases"] = purchases
+                    ria["items"] = recompute_ria_items(ria["purchases"], ria.get("sales", []))
+                    save_ria_holdings(ria)
+                    self._send_json({"ok": True, "ria": ria})
+                    return
+
+                if action == "delete_purchase":
+                    pid = (body.get("id") or "").strip()
+                    ria["purchases"] = [p for p in ria.get("purchases", []) if p.get("id") != pid]
+                    ria["items"] = recompute_ria_items(ria["purchases"], ria.get("sales", []))
+                    save_ria_holdings(ria)
+                    self._send_json({"ok": True, "ria": ria})
+                    return
+
                 if action == "upsert_item":
                     sym = (body.get("symbol") or "").strip().upper()
                     raw_name = (body.get("name") or "").strip()
@@ -2577,6 +2880,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                     sales.append(sale)
                     sales.sort(key=lambda x: x.get("soldAt") or "")
                     ria["sales"] = sales
+                    if ria.get("purchases"):
+                        ria["items"] = recompute_ria_items(ria["purchases"], ria["sales"])
                     save_ria_holdings(ria)
                     self._send_json({"ok": True, "ria": ria})
                     return
@@ -2584,6 +2889,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 if action == "delete_sale":
                     sale_id = (body.get("id") or "").strip()
                     ria["sales"] = [x for x in (ria.get("sales") or []) if x.get("id") != sale_id]
+                    if ria.get("purchases"):
+                        ria["items"] = recompute_ria_items(ria["purchases"], ria["sales"])
                     save_ria_holdings(ria)
                     self._send_json({"ok": True, "ria": ria})
                     return

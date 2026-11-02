@@ -153,7 +153,14 @@
 
             <div class="kpi-box current-box">
               <div class="kpi-label" id="totalMvLabel">현재 총 평가금액 (세전)</div>
-              <div class="kpi-value" id="totalMarketValueKrw">-</div>
+              <div class="kpi-value-row">
+                <div class="kpi-value" id="totalMarketValueKrw">-</div>
+                <span class="desktop-daily-pill" id="desktopDailyPill" title="전일 대비 일간 손익 및 수익률">
+                  <span class="daily-pill-tag">일간</span>
+                  <span id="desktopDailyAmt">-원</span>
+                  <span id="desktopDailyRate">(0.00%)</span>
+                </span>
+              </div>
               <div class="kpi-sub" id="totalMvBreakdown">국내 - + 해외 -</div>
             </div>
 
@@ -698,97 +705,141 @@
 
     <!-- 탭 3: RIA 계좌 종목 등록·관리 (토스 실시간 시세 연동) -->
     <section id="tab-ria" class="tab-panel">
+      <!-- 현재 RIA 실시간 보유 잔고 (자동 합산) -->
       <div class="card ria-card">
         <div class="holdings-header">
           <div>
             <span class="badge-pill">토스 실시간 시세(`/api/v1/prices`) 자동 연동</span>
-            <h3 class="card-title">RIA 계좌 보유종목 등록 및 관리</h3>
+            <h3 class="card-title">현재 RIA 실시간 보유 잔고 (자동 합산)</h3>
             <p class="card-desc">
-              RIA 계좌에 보유하신 <strong>종목·수량·평단가(또는 매수원금)</strong>를 등록해 두시면, 매 조회 시 토스증권 API에서 <strong>실시간 현재가</strong>를 받아와 평가금액·수익금·수익률을 자동 계산하고 전체 계좌 성적표 및 토스 공식 수익률에 합산합니다.
+              등록된 매수 내역에서 매도 내역(선입선출)을 차감하여 현재 실보유 잔고를 실시간 시세와 함께 자동 계산합니다.
             </p>
           </div>
         </div>
 
-        <!-- RIA 종목 추가 폼 -->
-        <div class="ria-form-box">
-          <h4>+ RIA 계좌 보유종목 추가 / 수정</h4>
-          <div class="ria-form-grid">
-            <div class="form-field search-autocomplete-wrap">
-              <label>1. 종목 검색 (한글 종목명 또는 코드/티커)</label>
-              <input type="text" id="riaSearchInput" placeholder="예: 삼성전자, KODEX, 엔비디아, 005930..." autocomplete="off" />
-              <div id="riaAutocompleteList" class="autocomplete-dropdown hidden"></div>
-            </div>
-
-            <div class="form-field">
-              <label>종목코드 / 티커</label>
-              <input type="text" id="riaSymbolInput" placeholder="예: 005930 또는 AAPL" />
-            </div>
-
-            <div class="form-field">
-              <label>종목명</label>
-              <input type="text" id="riaNameInput" placeholder="자동입력 또는 직접입력" />
-            </div>
-
-            <div class="form-field">
-              <label>통화</label>
-              <select id="riaCurrencySelect" class="select-input">
-                <option value="KRW">KRW (국내 원화)</option>
-                <option value="USD">USD (미국 달러)</option>
-              </select>
-            </div>
-
-            <div class="form-field">
-              <label>2. 보유 수량 (주)</label>
-              <input type="number" step="any" id="riaQtyInput" placeholder="예: 50" />
-            </div>
-
-            <div class="form-field">
-              <label>3. 내 평균 매수가 (1주당 평단가)</label>
-              <input type="number" step="any" id="riaAvgPriceInput" placeholder="예: 70000" />
-            </div>
-
-            <div class="form-field">
-              <label>총 매수원금 (수량×평단가 자동계산)</label>
-              <input type="number" step="any" id="riaPurchaseAmtInput" placeholder="자동 계산됨" />
-            </div>
-
-            <div class="form-field">
-              <label>4. 매수일 (미입력 시 평단가로 자동추정)</label>
-              <input type="date" id="riaDateInput" />
-            </div>
-
-            <div class="form-field form-btn-wrap">
-              <button class="btn-primary" id="saveRiaItemBtn">RIA 종목 저장</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 등록된 RIA 종목 리스트 -->
-        <div class="table-responsive" style="margin-top: 20px;">
+        <div class="table-responsive" style="margin-top: 15px;">
           <table class="holdings-table">
             <thead>
               <tr>
-                <th>종목명 (코드)</th>
-                <th>매수일 (구간수익 반영일)</th>
-                <th class="text-right">보유수량</th>
-                <th class="text-right">내 평균 매수가</th>
+                <th>종목 (코드)</th>
+                <th>매수일 / 분할매수</th>
+                <th class="text-right">보유 수량</th>
+                <th class="text-right">평균 매입단가</th>
                 <th class="text-right">실시간 현재가 (Toss API)</th>
-                <th class="text-right">매수 원금</th>
+                <th class="text-right">매입 총액</th>
                 <th class="text-right">실시간 평가금액</th>
-                <th class="text-right">수익금 / 수익률</th>
-                <th class="text-right">관리</th>
+                <th class="text-right">평가손익 / 수익률</th>
               </tr>
             </thead>
             <tbody id="riaManageTableBody">
               <tr>
-                <td colspan="9" class="empty-cell">등록된 RIA 계좌 보유종목이 없습니다. 위 입력창에서 종목을 추가해 보세요!</td>
+                <td colspan="8" class="empty-cell">등록된 RIA 보유 종목이 없습니다.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- RIA 이관·매도 내역 (토스 종합계좌 → RIA 이관 후 매도) -->
+      <!-- RIA 매수 내역 관리 (매수 내역 저장) -->
+      <div class="card ria-card" style="margin-top: 20px;">
+        <div class="holdings-header">
+          <div>
+            <h3 class="card-title">RIA 매수 내역 관리 (매수 내역 저장)</h3>
+            <p class="card-desc">
+              RIA 계좌에서 여러 번 나누어 매수한 내역을 각각 저장할 수 있습니다. 등록된 매수 내역을 바탕으로 보유 수량 및 평단가가 자동 계산되며, 시점별 자산 평가와 수익률에 분할 매수 시점이 정확히 반영됩니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- 매수 통계 요약 스트립 -->
+        <div class="order-summary-strip" id="riaPurchasesSummaryStrip">
+          <div class="order-stat"><span>매수 건수</span><strong id="riaBuyCountStat">-</strong></div>
+          <div class="order-stat"><span>총 매수 금액</span><strong id="riaBuyTotalStat">-</strong></div>
+          <div class="order-stat"><span>매수 종목 수</span><strong id="riaBuySymbolCountStat">-</strong></div>
+        </div>
+
+        <!-- RIA 매수 내역 추가 / 수정 폼 -->
+        <div class="ria-form-box">
+          <h4 id="riaBuyFormTitle">+ RIA 매수 내역 추가 / 수정</h4>
+          <input type="hidden" id="riaBuyIdInput" />
+          <div class="ria-form-grid">
+            <div class="form-field search-autocomplete-wrap">
+              <label>1. 종목 검색 (한국 종목명 또는 코드/티커)</label>
+              <input type="text" id="riaBuySearchInput" placeholder="예: 삼성전자, KODEX, 애플, 005930..." autocomplete="off" />
+              <div id="riaBuyAutocompleteList" class="autocomplete-dropdown hidden"></div>
+            </div>
+
+            <div class="form-field">
+              <label>코드 / 티커</label>
+              <input type="text" id="riaBuySymbolInput" placeholder="예: 005930 또는 AAPL" />
+            </div>
+
+            <div class="form-field">
+              <label>종목명</label>
+              <input type="text" id="riaBuyNameInput" placeholder="자동입력 또는 직접입력" />
+            </div>
+
+            <div class="form-field">
+              <label>통화</label>
+              <select id="riaBuyCurrencySelect" class="select-input">
+                <option value="KRW">KRW (대한민국 원)</option>
+                <option value="USD">USD (미국 달러)</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label>2. 매수일시</label>
+              <input type="text" id="riaBuyDateInput" placeholder="예: 2026-05-13 또는 2026-05-13 09:30" />
+            </div>
+
+            <div class="form-field">
+              <label>3. 매수 수량 (주)</label>
+              <input type="number" step="any" id="riaBuyQtyInput" placeholder="예: 14" />
+            </div>
+
+            <div class="form-field">
+              <label>4. 1주당 매수가 (단가)</label>
+              <input type="number" step="any" id="riaBuyPriceInput" placeholder="예: 1873000" />
+            </div>
+
+            <div class="form-field">
+              <label>총 매수금액 (단가×수량 자동)</label>
+              <input type="number" step="any" id="riaBuyAmountInput" placeholder="자동 계산" />
+            </div>
+
+            <div class="form-field form-btn-wrap" style="display:flex;gap:8px;">
+              <button class="btn-primary" id="saveRiaBuyBtn">매수 내역 저장</button>
+              <button class="btn-outline hidden" id="cancelRiaBuyBtn" type="button">취소</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 등록된 RIA 매수 내역 리스트 -->
+        <h4 style="margin: 24px 0 10px 0; font-size: 15px; font-weight: 600; color: var(--text-primary);">
+          등록된 RIA 매수 내역
+        </h4>
+        <div class="table-responsive">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>매수일시</th>
+                <th>종목 (코드)</th>
+                <th class="text-right">매수 수량</th>
+                <th class="text-right">1주당 매수가</th>
+                <th class="text-right">총 매수금액</th>
+                <th class="text-right">통화</th>
+                <th class="text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="riaPurchasesTableBody">
+              <tr>
+                <td colspan="7" class="empty-cell">등록된 RIA 매수 내역이 없습니다. 위 입력창에서 매수 내역을 추가해 보세요!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card ria-card" style="margin-top: 20px;">
         <div class="holdings-header">
           <div>

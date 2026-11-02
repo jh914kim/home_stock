@@ -198,6 +198,7 @@ function renderAll() {
   renderHeroSection();
   renderCharts();
   renderHoldingsTable();
+  renderRiaPurchasesTable();
   renderRiaManageTable();
   renderRiaSalesTable();
   renderCapitalTab();
@@ -334,6 +335,17 @@ function renderHeroSection() {
         )})`;
 
   document.getElementById("totalMarketValueKrw").textContent = fmtKrw(totalMv);
+
+  // 일간 손익 & 일간 수익률 (전체 금액 옆 배치)
+  const desktopPill = document.getElementById("desktopDailyPill");
+  if (desktopPill) {
+    const dsc = signClass(tot.dailyProfitLoss !== 0 ? tot.dailyProfitLoss : tot.dailyReturnRatePct);
+    desktopPill.className = `desktop-daily-pill ${dsc}`;
+    const dAmt = document.getElementById("desktopDailyAmt");
+    if (dAmt) dAmt.textContent = fmtKrw(tot.dailyProfitLoss, true);
+    const dRate = document.getElementById("desktopDailyRate");
+    if (dRate) dRate.textContent = `(${fmtPct(tot.dailyReturnRatePct)})`;
+  }
   document.getElementById("totalMvBreakdown").textContent =
     etfItems.length > 0
       ? `국내 ${fmtKrw(krMvEff)} + 해외 ${fmtKrw(usMvKrwEff)} (직투 ${fmtUsd(
@@ -576,6 +588,53 @@ function renderHeroSection() {
 }
 
 // 차트 3종 렌더링
+// Chart.js 전역 설정: 모든 차트의 범례(Legend) 및 툴팁(Tooltip) 사각형을 첨부4와 같은 직선(Line)으로 통일
+if (typeof Chart !== "undefined") {
+  if (Chart.defaults?.plugins?.legend) {
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.pointStyle = "line";
+    Chart.defaults.plugins.legend.labels.pointStyleWidth = 20;
+    Chart.defaults.plugins.legend.labels.boxWidth = 20;
+  }
+  if (Chart.defaults?.plugins?.tooltip) {
+    Chart.defaults.plugins.tooltip.boxWidth = 16;
+    Chart.defaults.plugins.tooltip.boxHeight = 3;
+    Chart.defaults.plugins.tooltip.boxPadding = 5;
+    Chart.defaults.plugins.tooltip.usePointStyle = false;
+    Chart.defaults.plugins.tooltip.multiKeyBackground = "transparent";
+  }
+  if (Chart.Tooltip && Chart.Tooltip.prototype) {
+    Chart.Tooltip.prototype._drawColorBox = function (ctx, pt, i, s, opts) {
+      const a = this.labelColors[i] || {};
+      const color = a.borderColor || a.backgroundColor || "#6b7684";
+      const h = opts.boxWidth || 16;
+      const l = opts.boxHeight || 3;
+      const font = opts.bodyFont || { size: 12 };
+      const lineHeight = font.lineHeight || 16;
+      const f = l < lineHeight ? (lineHeight - l) / 2 : 0;
+      const g = pt.y + f;
+      const d = this.options && this.options.boxPadding ? this.options.boxPadding : 4;
+      const u = s && s.x ? s.x(d) : pt.x;
+      const left = s && s.leftForLtr ? s.leftForLtr(u, h) : pt.x;
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(left, g, h, l, 1.5);
+        ctx.fill();
+      } else {
+        ctx.fillRect(left, g, h, l);
+      }
+      ctx.restore();
+      if (this.labelTextColors) {
+        ctx.fillStyle = this.labelTextColors[i];
+      }
+    };
+  }
+}
+
 function renderCharts() {
   const items = [...(state.dashboard?.items || [])];
   const after = state.afterCost;
@@ -647,7 +706,19 @@ function renderCharts() {
           },
         },
         tooltip: {
+          boxWidth: 16,
+          boxHeight: 3,
+          boxPadding: 5,
           callbacks: {
+            labelColor: (ctx) => {
+              const color = ctx.datasetIndex === 0 ? "rgba(107, 118, 132, 1)" : "#f04452";
+              return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 0,
+                borderRadius: 1.5,
+              };
+            },
             label: (ctx) => `${ctx.dataset.label}: ${fmtKrw(ctx.raw)}`,
             afterBody: (itemsTooltip) => {
               const idx = itemsTooltip[0].dataIndex;
@@ -737,7 +808,19 @@ function renderProfitContributionChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
+          boxWidth: 16,
+          boxHeight: 3,
+          boxPadding: 5,
           callbacks: {
+            labelColor: (ctx) => {
+              const color = profitColors[ctx.dataIndex] || "#6b7684";
+              return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 0,
+                borderRadius: 1.5,
+              };
+            },
             label: (ctx) => {
               const item = byProfit[ctx.dataIndex];
               const pl = after ? item.profitLossAfterCostKrw : item.profitLossKrw;
@@ -814,10 +897,39 @@ function renderWeightChart() {
       plugins: {
         legend: {
           position: "right",
-          labels: { boxWidth: 10, font: { family: "Pretendard", size: 11 } },
+          labels: {
+            usePointStyle: true,
+            pointStyle: "line",
+            pointStyleWidth: 16,
+            boxWidth: 16,
+            font: { family: "Pretendard", size: 11 },
+            generateLabels: (chart) => {
+              const defaultLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              return defaultLabels.map((item, idx) => {
+                const color = palette[idx % palette.length];
+                item.pointStyle = "line";
+                item.strokeStyle = color;
+                item.fillStyle = color;
+                item.lineWidth = 3;
+                return item;
+              });
+            },
+          },
         },
         tooltip: {
+          boxWidth: 16,
+          boxHeight: 3,
+          boxPadding: 5,
           callbacks: {
+            labelColor: (ctx) => {
+              const color = palette[ctx.dataIndex % palette.length];
+              return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 0,
+                borderRadius: 1.5,
+              };
+            },
             label: (ctx) => {
               const item = sorted[ctx.dataIndex];
               const pct = isPurchase
@@ -1051,7 +1163,19 @@ function renderReturnsHistory() {
           },
         },
         tooltip: {
+          boxWidth: 16,
+          boxHeight: 3,
+          boxPadding: 5,
           callbacks: {
+            labelColor: (ctx) => {
+              const color = ctx.datasetIndex === 0 ? "#f04452" : "#6b7684";
+              return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 0,
+                borderRadius: 1.5,
+              };
+            },
             title: (items) => series[items[0].dataIndex].period,
             label: (ctx) => {
               if (ctx.datasetIndex === 1 && metric !== "value") return null;
@@ -1152,7 +1276,21 @@ function renderReturnsHistory() {
           },
         },
         tooltip: {
+          boxWidth: 16,
+          boxHeight: 3,
+          boxPadding: 5,
           callbacks: {
+            labelColor: (ctx) => {
+              const row = series[ctx.dataIndex];
+              const val = row ? row.periodProfitChangeKrw : 0;
+              const color = val > 0 ? "#f04452" : val < 0 ? "#3182f6" : "#6b7684";
+              return {
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 0,
+                borderRadius: 1.5,
+              };
+            },
             title: (items) => series[items[0].dataIndex].period,
             label: (ctx) => {
               const row = series[ctx.dataIndex];
@@ -1457,6 +1595,99 @@ function renderHoldingsTable() {
   });
 }
 
+// RIA 매수 내역 테이블 렌더링
+function renderRiaPurchasesTable() {
+  const cfg = state.dashboard?.riaConfig || {};
+  const purchases = cfg.purchases || [];
+  const sum = cfg.purchasesSummary || {};
+  const tbody = document.getElementById("riaPurchasesTableBody");
+  if (!tbody) return;
+
+  const countEl = document.getElementById("riaBuyCountStat");
+  if (countEl) countEl.textContent = `${sum.count || purchases.length || 0}건`;
+  const totalEl = document.getElementById("riaBuyTotalStat");
+  if (totalEl) totalEl.textContent = fmtKrw(sum.totalAmountKrw || 0);
+  const symCountEl = document.getElementById("riaBuySymbolCountStat");
+  if (symCountEl) symCountEl.textContent = `${sum.distinctSymbolsCount || 0}개 종목`;
+
+  if (purchases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-cell">등록된 RIA 매수 내역이 없습니다. 위 입력창에서 매수 내역을 추가해 보세요!</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = purchases
+    .slice()
+    .sort((a, b) => (b.boughtAt || "").localeCompare(a.boughtAt || ""))
+    .map((p) => {
+      const amt = Number(p.purchaseAmount || 0) || (Number(p.quantity || 0) * Number(p.price || 0));
+      return `
+        <tr>
+          <td>${p.boughtAt || "-"}</td>
+          <td>
+            <div class="cell-primary">${p.name || p.symbol}</div>
+            <div class="cell-secondary">${p.symbol}</div>
+          </td>
+          <td class="text-right">${fmtQty(p.quantity)}</td>
+          <td class="text-right">${fmtCurr(p.price, p.currency)}</td>
+          <td class="text-right"><strong>${fmtCurr(amt, p.currency)}</strong></td>
+          <td class="text-right"><span class="acct-tag">${p.currency}</span></td>
+          <td class="text-right">
+            <button class="btn-outline" style="padding:5px 9px;font-size:12px;margin-right:4px;" data-edit-buy-id="${p.id}">수정</button>
+            <button class="btn-danger-sm" data-del-buy-id="${p.id}">삭제</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  // Edit handler
+  tbody.querySelectorAll("button[data-edit-buy-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-edit-buy-id");
+      const p = purchases.find((x) => x.id === id);
+      if (!p) return;
+      document.getElementById("riaBuyIdInput").value = p.id;
+      document.getElementById("riaBuySymbolInput").value = p.symbol;
+      document.getElementById("riaBuyNameInput").value = p.name;
+      document.getElementById("riaBuyCurrencySelect").value = p.currency;
+      document.getElementById("riaBuyDateInput").value = p.boughtAt || "";
+      document.getElementById("riaBuyQtyInput").value = p.quantity;
+      document.getElementById("riaBuyPriceInput").value = p.price;
+      const amt = Number(p.purchaseAmount || 0) || (Number(p.quantity || 0) * Number(p.price || 0));
+      document.getElementById("riaBuyAmountInput").value = amt;
+      const titleEl = document.getElementById("riaBuyFormTitle");
+      if (titleEl) titleEl.textContent = `✏️ RIA 매수 내역 수정 (${p.name})`;
+      const saveBtn = document.getElementById("saveRiaBuyBtn");
+      if (saveBtn) saveBtn.textContent = "수정 저장";
+      const cancelBtn = document.getElementById("cancelRiaBuyBtn");
+      if (cancelBtn) cancelBtn.classList.remove("hidden");
+      document.getElementById("riaBuyFormTitle")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+
+  // Delete handler
+  tbody.querySelectorAll("button[data-del-buy-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-del-buy-id");
+      const p = purchases.find((x) => x.id === id);
+      const name = p ? p.name : id;
+      if (!confirm(`'${name}' 매수 내역을 삭제하시겠습니까?`)) return;
+      const resp = await fetch("/api/ria-holdings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_purchase", id }),
+      });
+      const resData = await resp.json();
+      if (!resp.ok || resData.error) {
+        alert(resData.error || "삭제 실패");
+        return;
+      }
+      state.historyData = null;
+      await fetchDashboard(false);
+    });
+  });
+}
+
 // RIA 관리 탭 테이블 렌더링
 function renderRiaManageTable() {
   const riaItems = state.dashboard?.riaConfig?.items || [];
@@ -1464,21 +1695,24 @@ function renderRiaManageTable() {
   if (!tbody) return;
 
   if (riaItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-cell">등록된 RIA 계좌 보유종목이 없습니다. 위 입력창에서 종목을 추가해 보세요!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-cell">등록된 RIA 보유 종목이 없습니다.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = riaItems
     .map((it) => {
+      let lotBadge = `<span class="acct-tag ria">${it.purchaseDate || "자동"}</span>`;
+      if (it.lots && it.lots.length > 1) {
+        const lotSummary = it.lots.map(l => `${l.date?.slice(5)}: ${l.quantity}주`).join(", ");
+        lotBadge = `<span class="acct-tag ria" style="background:#eef2ff;color:#4f46e5;font-weight:600;" title="${lotSummary}">분할 ${it.lots.length}회 (${lotSummary})</span>`;
+      }
       return `
         <tr>
           <td>
             <div class="cell-primary">${it.name}</div>
-            <div class="cell-secondary">${it.symbol} · ${it.currency}</div>
+            <div class="cell-secondary">${it.symbol} • ${it.currency}</div>
           </td>
-          <td>
-            <span class="acct-tag ria">${it.purchaseDate || "자동추정"}</span>
-          </td>
+          <td>${lotBadge}</td>
           <td class="text-right">${fmtQty(it.quantity)}</td>
           <td class="text-right">${fmtCurr(it.averagePurchasePrice, it.currency)}</td>
           <td class="text-right"><strong>${fmtCurr(
@@ -1500,46 +1734,12 @@ function renderRiaManageTable() {
         it.returnRatePct
       )}</span>
           </td>
-          <td class="text-right">
-            <button class="btn-outline" style="padding:5px 9px;font-size:12px;margin-right:4px;" data-edit-sym="${it.symbol}">수정</button>
-            <button class="btn-danger-sm" data-del-sym="${it.symbol}">삭제</button>
-          </td>
         </tr>
       `;
     })
     .join("");
-
-  tbody.querySelectorAll("button[data-edit-sym]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const sym = btn.getAttribute("data-edit-sym");
-      const found = riaItems.find((i) => i.symbol === sym);
-      if (!found) return;
-      document.getElementById("riaSymbolInput").value = found.symbol;
-      document.getElementById("riaNameInput").value = found.name;
-      document.getElementById("riaCurrencySelect").value = found.currency;
-      document.getElementById("riaQtyInput").value = found.quantity;
-      document.getElementById("riaAvgPriceInput").value = found.averagePurchasePrice;
-      document.getElementById("riaPurchaseAmtInput").value = found.purchaseAmount;
-      const dateIn = document.getElementById("riaDateInput");
-      if (dateIn) dateIn.value = found.purchaseDate || "";
-    });
-  });
-
-  tbody.querySelectorAll("button[data-del-sym]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const sym = btn.getAttribute("data-del-sym");
-      await fetch("/api/ria-holdings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete_item", symbol: sym }),
-      });
-      state.historyData = null;
-      await fetchDashboard(false);
-    });
-  });
 }
 
-// RIA 이관·매도 내역 테이블 렌더링
 function renderRiaSalesTable() {
   const cfg = state.dashboard?.riaConfig || {};
   const sales = cfg.sales || [];
@@ -1748,6 +1948,22 @@ async function loadModalCandles(item) {
               pointStyleWidth: 28,
               boxWidth: 28,
               font: { family: "Pretendard", size: 11 },
+            },
+          },
+          tooltip: {
+            boxWidth: 16,
+            boxHeight: 3,
+            boxPadding: 5,
+            callbacks: {
+              labelColor: (ctx) => {
+                const color = ctx.datasetIndex === 0 ? lineColor : "#191f28";
+                return {
+                  borderColor: color,
+                  backgroundColor: color,
+                  borderWidth: 0,
+                  borderRadius: 1.5,
+                };
+              },
             },
           },
         },
@@ -2340,145 +2556,184 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // RIA 종목 자동완성 검색
-  const riaSearchInput = document.getElementById("riaSearchInput");
-  const acList = document.getElementById("riaAutocompleteList");
+    // RIA 매수 종목 자동완성 검색
+  const riaBuySearchInput = document.getElementById("riaBuySearchInput");
+  const riaBuyAcList = document.getElementById("riaBuyAutocompleteList");
 
-  riaSearchInput.addEventListener("input", (e) => {
-    const q = e.target.value.trim();
-    clearTimeout(searchDebounceTimer);
-    if (!q) {
-      acList.classList.add("hidden");
-      return;
-    }
-    searchDebounceTimer = setTimeout(async () => {
-      try {
-        const resp = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`);
-        const data = await resp.json();
-        const results = data.results || [];
-        if (results.length === 0) {
-          acList.innerHTML = `<div class="ac-item">검색 결과가 없습니다 (직접 코드 입력 가능)</div>`;
-          acList.classList.remove("hidden");
-          return;
-        }
-        acList.innerHTML = results
-          .map(
-            (r) => `
-            <div class="ac-item" data-sym="${r.symbol}" data-name="${r.name}" data-curr="${r.currency}">
-              <span><strong>${r.name}</strong> (${r.symbol})</span>
-              <span class="acct-tag">${r.market} · ${r.currency}</span>
-            </div>
-          `
-          )
-          .join("");
-        acList.classList.remove("hidden");
+  if (riaBuySearchInput && riaBuyAcList) {
+    riaBuySearchInput.addEventListener("input", (e) => {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounceTimer);
+      if (!q) {
+        riaBuyAcList.classList.add("hidden");
+        return;
+      }
+      searchDebounceTimer = setTimeout(async () => {
+        try {
+          const resp = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`);
+          const data = await resp.json();
+          const results = data.results || [];
+          if (results.length === 0) {
+            riaBuyAcList.innerHTML = `<div class="ac-item">검색 결과가 없습니다 (직접 코드 입력 가능)</div>`;
+            riaBuyAcList.classList.remove("hidden");
+            return;
+          }
+          riaBuyAcList.innerHTML = results
+            .map(
+              (r) => `
+              <div class="ac-item" data-sym="${r.symbol}" data-name="${r.name}" data-curr="${r.currency}">
+                <span><strong>${r.name}</strong> (${r.symbol})</span>
+                <span class="acct-tag">${r.market} • ${r.currency}</span>
+              </div>
+            `
+            )
+            .join("");
+          riaBuyAcList.classList.remove("hidden");
 
-        acList.querySelectorAll(".ac-item[data-sym]").forEach((el) => {
-          el.addEventListener("click", () => {
-            document.getElementById("riaSymbolInput").value =
-              el.getAttribute("data-sym");
-            document.getElementById("riaNameInput").value =
-              el.getAttribute("data-name");
-            document.getElementById("riaCurrencySelect").value =
-              el.getAttribute("data-curr");
-            riaSearchInput.value = `${el.getAttribute("data-name")} (${el.getAttribute(
-              "data-sym"
-            )})`;
-            acList.classList.add("hidden");
+          riaBuyAcList.querySelectorAll(".ac-item[data-sym]").forEach((el) => {
+            el.addEventListener("click", () => {
+              document.getElementById("riaBuySymbolInput").value = el.getAttribute("data-sym");
+              document.getElementById("riaBuyNameInput").value = el.getAttribute("data-name");
+              document.getElementById("riaBuyCurrencySelect").value = el.getAttribute("data-curr");
+              riaBuySearchInput.value = `${el.getAttribute("data-name")} (${el.getAttribute("data-sym")})`;
+              riaBuyAcList.classList.add("hidden");
+            });
           });
-        });
-      } catch (err) {
-        console.error(err);
+        } catch (err) {
+          console.error(err);
+        }
+      }, 220);
+    });
+  }
+
+  // 코드 직접 입력 완료 시 종목명 자동 조회
+  const riaBuySymbolInput = document.getElementById("riaBuySymbolInput");
+  if (riaBuySymbolInput) {
+    riaBuySymbolInput.addEventListener("blur", async () => {
+      const sym = riaBuySymbolInput.value.trim().toUpperCase();
+      if (!sym) return;
+      const nameInput = document.getElementById("riaBuyNameInput");
+      if (nameInput.value.trim() && nameInput.value.trim().toUpperCase() !== sym) return;
+      try {
+        const resp = await fetch(`/api/stock-search?q=${encodeURIComponent(sym)}`);
+        const data = await resp.json();
+        const exact = (data.results || []).find((r) => (r.symbol || "").toUpperCase() === sym);
+        if (exact) {
+          nameInput.value = exact.name;
+          document.getElementById("riaBuyCurrencySelect").value = exact.currency;
+        }
+      } catch (e) {
+        console.error(e);
       }
-    }, 220);
-  });
+    });
+  }
 
-  // 종목코드 직접 입력 시에도 자동으로 종목명/통화 조회
-  const riaSymbolInput = document.getElementById("riaSymbolInput");
-  riaSymbolInput.addEventListener("blur", async () => {
-    const sym = riaSymbolInput.value.trim().toUpperCase();
-    if (!sym) return;
-    const nameInput = document.getElementById("riaNameInput");
-    if (nameInput.value.trim() && nameInput.value.trim().toUpperCase() !== sym) return;
-    try {
-      const resp = await fetch(`/api/stock-search?q=${encodeURIComponent(sym)}`);
-      const data = await resp.json();
-      const exact = (data.results || []).find(
-        (r) => (r.symbol || "").toUpperCase() === sym
-      );
-      if (exact) {
-        nameInput.value = exact.name;
-        document.getElementById("riaCurrencySelect").value = exact.currency;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  });
+  // 매수 수량 / 단가 / 총금액 자동 연동
+  const buyQtyIn = document.getElementById("riaBuyQtyInput");
+  const buyPriceIn = document.getElementById("riaBuyPriceInput");
+  const buyAmtIn = document.getElementById("riaBuyAmountInput");
 
-  // 수량 × 평단가 자동 계산
-  const qtyIn = document.getElementById("riaQtyInput");
-  const avgIn = document.getElementById("riaAvgPriceInput");
-  const purchIn = document.getElementById("riaPurchaseAmtInput");
-
-  function syncPurch() {
-    const q = Number(qtyIn.value || 0);
-    const a = Number(avgIn.value || 0);
-    if (q > 0 && a > 0) {
-      purchIn.value = (q * a).toFixed(2).replace(/\.00$/, "");
+  function syncBuyAmt() {
+    const q = Number(buyQtyIn.value || 0);
+    const p = Number(buyPriceIn.value || 0);
+    if (q > 0 && p > 0) {
+      buyAmtIn.value = (q * p).toFixed(2).replace(/\.00$/, "");
     }
   }
-  qtyIn.addEventListener("input", syncPurch);
-  avgIn.addEventListener("input", syncPurch);
-
-  // RIA 종목 저장
-  document.getElementById("saveRiaItemBtn").addEventListener("click", async () => {
-    const symbol = document.getElementById("riaSymbolInput").value.trim();
-    const name = document.getElementById("riaNameInput").value.trim();
-    const currency = document.getElementById("riaCurrencySelect").value;
-    const quantity = Number(qtyIn.value || 0);
-    const averagePurchasePrice = Number(avgIn.value || 0);
-    const purchaseAmount = Number(purchIn.value || 0);
-    const dateIn = document.getElementById("riaDateInput");
-    const purchaseDate = dateIn ? dateIn.value.trim() : "";
-
-    if (!symbol || quantity <= 0) {
-      alert("종목코드(티커)와 보유수량을 입력해 주세요.");
-      return;
+  function syncBuyPrice() {
+    const q = Number(buyQtyIn.value || 0);
+    const a = Number(buyAmtIn.value || 0);
+    if (q > 0 && a > 0) {
+      buyPriceIn.value = (a / q).toFixed(4).replace(/\.0000$/, "").replace(/00$/, "");
     }
+  }
+  if (buyQtyIn && buyPriceIn) {
+    buyQtyIn.addEventListener("input", syncBuyAmt);
+    buyPriceIn.addEventListener("input", syncBuyAmt);
+  }
+  if (buyAmtIn) {
+    buyAmtIn.addEventListener("input", syncBuyPrice);
+  }
 
-    const resp = await fetch("/api/ria-holdings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "upsert_item",
-        symbol,
-        name: name || symbol,
-        currency,
-        quantity,
-        averagePurchasePrice,
-        purchaseAmount,
-        purchaseDate,
-      }),
+  // 취소 버튼
+  const cancelRiaBuyBtn = document.getElementById("cancelRiaBuyBtn");
+  if (cancelRiaBuyBtn) {
+    cancelRiaBuyBtn.addEventListener("click", () => {
+      document.getElementById("riaBuyIdInput").value = "";
+      if (riaBuySearchInput) riaBuySearchInput.value = "";
+      document.getElementById("riaBuySymbolInput").value = "";
+      document.getElementById("riaBuyNameInput").value = "";
+      document.getElementById("riaBuyDateInput").value = "";
+      buyQtyIn.value = "";
+      buyPriceIn.value = "";
+      buyAmtIn.value = "";
+      const titleEl = document.getElementById("riaBuyFormTitle");
+      if (titleEl) titleEl.textContent = "+ RIA 매수 내역 추가 / 수정";
+      const saveBtn = document.getElementById("saveRiaBuyBtn");
+      if (saveBtn) saveBtn.textContent = "매수 내역 저장";
+      cancelRiaBuyBtn.classList.add("hidden");
     });
-    const resData = await resp.json();
-    if (!resp.ok || resData.error) {
-      alert(resData.error || "저장 실패");
-      return;
-    }
+  }
 
-    riaSearchInput.value = "";
-    document.getElementById("riaSymbolInput").value = "";
-    document.getElementById("riaNameInput").value = "";
-    qtyIn.value = "";
-    avgIn.value = "";
-    purchIn.value = "";
-    if (dateIn) dateIn.value = "";
+  // 매수 내역 저장 버튼
+  const saveRiaBuyBtn = document.getElementById("saveRiaBuyBtn");
+  if (saveRiaBuyBtn) {
+    saveRiaBuyBtn.addEventListener("click", async () => {
+      const pid = document.getElementById("riaBuyIdInput").value.trim();
+      const symbol = document.getElementById("riaBuySymbolInput").value.trim().toUpperCase();
+      const name = document.getElementById("riaBuyNameInput").value.trim();
+      const currency = document.getElementById("riaBuyCurrencySelect").value;
+      const boughtAt = document.getElementById("riaBuyDateInput").value.trim();
+      const quantity = Number(buyQtyIn.value || 0);
+      const price = Number(buyPriceIn.value || 0);
+      const purchaseAmount = Number(buyAmtIn.value || 0);
 
-    state.historyData = null;
-    await fetchDashboard(false);
-  });
+      if (!symbol || quantity <= 0) {
+        alert("종목코드(티커)와 매수 수량을 입력해 주세요.");
+        return;
+      }
 
-  document.getElementById("saveRiaSaleBtn").addEventListener("click", async () => {
+      const resp = await fetch("/api/ria-holdings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert_purchase",
+          id: pid,
+          symbol,
+          name: name || symbol,
+          currency,
+          boughtAt,
+          quantity,
+          price,
+          purchaseAmount,
+        }),
+      });
+      const resData = await resp.json();
+      if (!resp.ok || resData.error) {
+        alert(resData.error || "매수 내역 저장 실패");
+        return;
+      }
+
+      // Reset form
+      document.getElementById("riaBuyIdInput").value = "";
+      if (riaBuySearchInput) riaBuySearchInput.value = "";
+      document.getElementById("riaBuySymbolInput").value = "";
+      document.getElementById("riaBuyNameInput").value = "";
+      document.getElementById("riaBuyDateInput").value = "";
+      buyQtyIn.value = "";
+      buyPriceIn.value = "";
+      buyAmtIn.value = "";
+      const titleEl = document.getElementById("riaBuyFormTitle");
+      if (titleEl) titleEl.textContent = "+ RIA 매수 내역 추가 / 수정";
+      saveRiaBuyBtn.textContent = "매수 내역 저장";
+      if (cancelRiaBuyBtn) cancelRiaBuyBtn.classList.add("hidden");
+
+      state.historyData = null;
+      await fetchDashboard(false);
+    });
+  }
+
+  document.getElementById("saveRiaSaleBtn")?.addEventListener("click", async () => {
     const val = (id) => document.getElementById(id).value.trim();
     const symbol = val("riaSaleSymbolInput");
     const quantity = Number(val("riaSaleQtyInput") || 0);

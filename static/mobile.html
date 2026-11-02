@@ -420,13 +420,64 @@
       color: var(--text-muted);
     }
 
+    .hero-amount-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      margin-bottom: 8px;
+    }
+
     .hero-total-amount {
-      font-size: 30px;
+      font-size: clamp(23px, 6.2vw, 29px);
       font-weight: 800;
       letter-spacing: -0.8px;
       color: var(--text-main);
-      margin-bottom: 8px;
+      margin-bottom: 0;
+      line-height: 1.15;
       font-variant-numeric: tabular-nums;
+    }
+
+    .hero-daily-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      font-variant-numeric: tabular-nums;
+      background: #f2f4f6;
+      color: var(--text-sub);
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .hero-daily-pill.up {
+      background: var(--up-bg);
+      color: var(--up-red);
+      border-color: rgba(240, 68, 82, 0.18);
+    }
+
+    .hero-daily-pill.down {
+      background: var(--down-bg);
+      color: var(--down-blue);
+      border-color: rgba(49, 130, 246, 0.18);
+    }
+
+    .hero-daily-pill .daily-pill-label {
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0.85;
+    }
+
+    .hero-daily-pill .daily-pill-amt {
+      font-weight: 700;
+    }
+
+    .hero-daily-pill .daily-pill-rate {
+      font-weight: 600;
     }
 
     .hero-profit-row {
@@ -1534,14 +1585,21 @@
         <span>현재 총 평가자산 (세전)</span>
         <span class="hero-time" id="updateTime">-</span>
       </div>
-      <div class="hero-total-amount" id="totalMv">-원</div>
-
-      <div class="hero-profit-row">
+      <div class="hero-amount-row">
+        <div class="hero-total-amount" id="totalMv">-원</div>
         <div class="hero-profit-left">
           <span class="profit-badge up" id="profitBadge">
             <span id="profitRate">+0.00%</span>
           </span>
           <span class="profit-raw-text up" id="profitAmount">+0원</span>
+        </div>
+      </div>
+
+      <div class="hero-profit-row">
+        <div class="hero-daily-pill" id="heroDailyPill" title="전일 대비 일간 손익 및 수익률">
+          <span class="daily-pill-label">일간 수익</span>
+          <span class="daily-pill-amt" id="heroDailyAmt">-원</span>
+          <span class="daily-pill-rate" id="heroDailyRate">(0.00%)</span>
         </div>
         <label class="m-switch-label capital-toggle-label" id="mCapitalToggleWrap" title="순수 투자 원금 비교를 켜거나 끕니다" style="display: none;">
           <input type="checkbox" id="mCapitalCompareToggle" />
@@ -2102,6 +2160,19 @@
 
       // 총 금액
       document.getElementById('totalMv').textContent = fmtKrw(mv);
+
+      // 일간 손익 및 일간 수익률 (전체 금액 옆 배치)
+      const dailyPl = totalKrw.dailyProfitLoss || 0;
+      const dailyRate = totalKrw.dailyReturnRatePct || 0;
+      const dailyPill = document.getElementById('heroDailyPill');
+      if (dailyPill) {
+        const dsc = signClass(dailyPl !== 0 ? dailyPl : dailyRate);
+        dailyPill.className = `hero-daily-pill ${dsc}`;
+        const amtEl = document.getElementById('heroDailyAmt');
+        if (amtEl) amtEl.textContent = fmtKrw(dailyPl, true);
+        const rateEl = document.getElementById('heroDailyRate');
+        if (rateEl) rateEl.textContent = `(${fmtPct(dailyRate)})`;
+      }
 
       // 수익 배지 & 텍스트
       const badge = document.getElementById('profitBadge');
