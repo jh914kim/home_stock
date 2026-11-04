@@ -1051,6 +1051,8 @@ class KisApiClient:
                 )
                 dpl_rate_pct = to_float(row.get("fltt_rt"), 0.0)
                 dpl_per_share = to_float(row.get("bfdy_cprs_icdc"), 0.0)
+                if dpl_rate_pct == 0.0 and dpl_per_share != 0.0 and (last_price - dpl_per_share) > 0:
+                    dpl_rate_pct = (dpl_per_share / (last_price - dpl_per_share)) * 100.0
                 dpl_val = dpl_per_share * qty
 
                 # Commission & Tax (ETFs in KR and pension/IRP accounts have 0% transaction tax)
@@ -1351,6 +1353,17 @@ def build_ria_enriched_items(ria_data, usd_krw_rate):
 
         fx_mult = usd_krw_rate if curr == "USD" else 1.0
 
+        dpl_per_share = to_float(p_info.get("change"), 0.0)
+        dpl_rate_pct = to_float(p_info.get("changeRate"), 0.0)
+        if abs(dpl_rate_pct) <= 1.0 and abs(dpl_rate_pct) > 0:
+            dpl_rate_pct = dpl_rate_pct * 100.0
+        if dpl_rate_pct == 0.0 and dpl_per_share != 0.0 and last_price > 0:
+            base_p = to_float(p_info.get("basePrice"), last_price - dpl_per_share)
+            if base_p > 0:
+                dpl_rate_pct = (dpl_per_share / base_p) * 100.0
+        dpl_val = dpl_per_share * qty
+        dpl_val_krw = dpl_val * fx_mult
+
         enriched.append({
             "symbol": sym,
             "name": name,
@@ -1372,8 +1385,8 @@ def build_ria_enriched_items(ria_data, usd_krw_rate):
             "profitLossAfterCost": pl_after_val,
             "returnRatePct": pl_rate_pct,
             "returnRateAfterCostPct": pl_rate_after_pct,
-            "dailyProfitLoss": 0.0,
-            "dailyReturnRatePct": 0.0,
+            "dailyProfitLoss": dpl_val,
+            "dailyReturnRatePct": dpl_rate_pct,
             "commission": comm,
             "tax": tax,
             "totalCost": total_cost,
@@ -1382,7 +1395,7 @@ def build_ria_enriched_items(ria_data, usd_krw_rate):
             "marketValueAfterCostKrw": val_after * fx_mult,
             "profitLossKrw": pl_val * fx_mult,
             "profitLossAfterCostKrw": pl_after_val * fx_mult,
-            "dailyProfitLossKrw": 0.0,
+            "dailyProfitLossKrw": dpl_val_krw,
             "totalCostKrw": total_cost * fx_mult,
             "weightByPurchasePct": 0.0,
             "weightByMarketValuePct": 0.0,
@@ -1858,6 +1871,38 @@ def build_dashboard_data(account_scope="ALL", force_accounts=False):
 
     total_cash_krw = cash_krw + cash_usd_krw
     total_asset_krw = total_mv_krw + total_cash_krw
+
+    # ETF 및 종목 중 당일 등락률/손익이 0이거나 미제공된 경우 (장 마감/야간/휴장일 등)
+    # 최근 2거래일 일봉 종가 캔들(candles[0], candles[1])을 비교하여 최근 거래일 기준 당일 등락률과 평가손익을 일관되게 산출
+    for it in active_items:
+        if abs(to_float(it.get('dailyReturnRatePct'), 0.0)) < 1e-6:
+            sym = (it.get('symbol') or '').strip().upper()
+            if not sym:
+                continue
+            candles = []
+            try:
+                candles = toss_client.get_daily_candles_extended(sym, pages=1)
+            except Exception:
+                pass
+            if not candles:
+                disk_cache_file = BASE_DIR / 'candles_cache.json'
+                if disk_cache_file.exists():
+                    try:
+                        cached_data = json.loads(disk_cache_file.read_text(encoding='utf-8'))
+                        candles = (cached_data.get(sym) or {}).get('candles', [])
+                    except Exception:
+                        pass
+            if candles and len(candles) >= 2:
+                c0 = to_float(candles[0].get('closePrice'), 0.0)
+                c1 = to_float(candles[1].get('closePrice'), 0.0)
+                if c1 > 0 and c0 > 0:
+                    dpl_per_share = c0 - c1
+                    dpl_rate_pct = (dpl_per_share / c1) * 100.0
+                    qty = to_float(it.get('quantity'), 0.0)
+                    fx_mult = usd_krw_rate if it.get('currency') == 'USD' else 1.0
+                    it['dailyReturnRatePct'] = dpl_rate_pct
+                    it['dailyProfitLoss'] = dpl_per_share * qty
+                    it['dailyProfitLossKrw'] = it['dailyProfitLoss'] * fx_mult
 
     for it in active_items:
         it["isOverseasEtf"] = is_domestic_overseas_etf(

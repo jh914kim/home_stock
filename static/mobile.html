@@ -739,6 +739,39 @@
       border-radius: 999px;
     }
 
+    /* 보유 종목 금액 표시 모드 토글 (평가금액 vs 현 시세) */
+    .price-mode-toggle {
+      display: inline-flex;
+      align-items: center;
+      background: #e9ecef;
+      padding: 3px;
+      border-radius: 999px;
+      gap: 2px;
+    }
+
+    .price-mode-btn {
+      border: none;
+      background: transparent;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      line-height: 1.2;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      font-family: inherit;
+    }
+
+    .price-mode-btn.active {
+      background: #ffffff;
+      color: var(--toss-blue);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+
     /* 검색 & 정렬 바 */
     .controls-row {
       display: flex;
@@ -1689,9 +1722,20 @@
       </div>
     </section>
 
-    <!-- 탭 전환 세그먼트 (비중·손익 vs 구간별 수익률 vs 보유 종목) -->
+    <!-- 탭 전환 세그먼트 (보유 종목 vs 비중·손익 vs 구간 수익률) -->
     <div class="m-segment-bar">
-      <button class="m-seg-btn active" id="mTabBtnCharts" data-tab="charts">
+      <button class="m-seg-btn active" id="mTabBtnHoldings" data-tab="holdings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"></line>
+          <line x1="8" y1="12" x2="21" y2="12"></line>
+          <line x1="8" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>
+        <span>보유 종목</span>
+      </button>
+      <button class="m-seg-btn" id="mTabBtnCharts" data-tab="charts">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
           <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
@@ -1705,25 +1749,18 @@
         </svg>
         <span>구간 수익률</span>
       </button>
-      <button class="m-seg-btn" id="mTabBtnHoldings" data-tab="holdings">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="8" y1="6" x2="21" y2="6"></line>
-          <line x1="8" y1="12" x2="21" y2="12"></line>
-          <line x1="8" y1="18" x2="21" y2="18"></line>
-          <line x1="3" y1="6" x2="3.01" y2="6"></line>
-          <line x1="3" y1="12" x2="3.01" y2="12"></line>
-          <line x1="3" y1="18" x2="3.01" y2="18"></line>
-        </svg>
-        <span>보유 종목</span>
-      </button>
     </div>
 
     <!-- 3-A. 보유 종목 리스트 섹션 -->
-    <section class="m-card" id="mSectionHoldings" style="display: none; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
+    <section class="m-card" id="mSectionHoldings" style="display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
       <div class="holdings-header">
         <div class="holdings-title">
           <span>보유 종목</span>
           <span class="holdings-count" id="holdingsCount">0</span>
+        </div>
+        <div class="price-mode-toggle" id="priceModeToggle" title="보유 종목 금액 표시 모드 변경">
+          <button type="button" class="price-mode-btn active" data-mode="price">현 시세</button>
+          <button type="button" class="price-mode-btn" data-mode="mv">평가금액</button>
         </div>
       </div>
 
@@ -1737,6 +1774,8 @@
         </div>
         <select class="sort-select" id="stockSort">
           <option value="mv_desc">평가금액순</option>
+          <option value="price_desc">현재가 높은순</option>
+          <option value="daily_rate_desc">당일등락 높은순</option>
           <option value="rate_desc">수익률 높은순</option>
           <option value="rate_asc">수익률 낮은순</option>
           <option value="profit_desc">손익 큰순</option>
@@ -1754,7 +1793,7 @@
     </section>
 
     <!-- 3-B. 모바일 최적화 분석 차트 섹션 (3종) -->
-    <div id="mSectionCharts" style="display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
+    <div id="mSectionCharts" style="display: none; flex-direction: column; gap: 14px; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;">
       <!-- 차트 갱신 중 로딩 안내 바 -->
       <div class="m-section-loader" id="mChartsLoader" style="display: none;">
         <div class="m-sync-spinner"></div>
@@ -2015,10 +2054,11 @@
       historyVisibleCount: 15,
       searchKeyword: '',
       sortKey: 'mv_desc',
-      activeTab: 'charts', // 'charts' | 'history' | 'holdings'
+      activeTab: 'holdings', // 'holdings' | 'charts' | 'history'
       weightMode: 'mv', // 'mv' | 'purchase'
       profitMode: 'amt', // 'amt' | 'rate'
-      overseasEtfAsUs: false // 디폴트: PC와 동일하게 미체크(false)
+      overseasEtfAsUs: false, // 디폴트: PC와 동일하게 미체크(false)
+      holdingsPriceMode: localStorage.getItem('holdings_price_mode') || 'price' // 'price' (현 시세, 기본값) | 'mv' (평가금액)
     };
 
     // 차트 인스턴스들
@@ -2043,6 +2083,16 @@
       if (round > 0) return '+' + s;
       if (round < 0) return '-' + s;
       return '0원';
+    }
+
+    function fmtUsd(num, showSign = false) {
+      if (num === null || num === undefined || isNaN(num)) return '$0.00';
+      const n = Number(num);
+      const s = '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (!showSign) return n < 0 ? '-' + s : s;
+      if (n > 0) return '+' + s;
+      if (n < 0) return '-' + s;
+      return '$0.00';
     }
 
     function fmtPct(num) {
@@ -2320,6 +2370,16 @@
 
         switch (state.sortKey) {
           case 'mv_desc': return bMv - aMv;
+          case 'price_desc': {
+            const aP = a.lastPriceKrw || a.lastPrice || 0;
+            const bP = b.lastPriceKrw || b.lastPrice || 0;
+            return bP - aP;
+          }
+          case 'daily_rate_desc': {
+            const aD = a.dailyReturnRatePct || 0;
+            const bD = b.dailyReturnRatePct || 0;
+            return bD - aD;
+          }
           case 'rate_desc': return bRate - aRate;
           case 'rate_asc': return aRate - bRate;
           case 'profit_desc': return bPl - aPl;
@@ -2329,6 +2389,7 @@
       });
 
       document.getElementById('holdingsCount').textContent = items.length;
+      updatePriceModeUI();
       const listEl = document.getElementById('stockList');
 
       if (items.length === 0) {
@@ -2373,10 +2434,30 @@
         // 해외추종 ETF 뱃지
         const etfBadge = it.isOverseasEtf ? '<span class="account-tag" style="background:#fff0f6; color:#d6336c;">해외ETF</span>' : '';
 
-        // 수량 및 평단가
+        // 수량 및 평단가/현재가/평가금액
         const qtyStr = `${Number(it.quantity || 0).toLocaleString()}주`;
         const avgPrice = it.averagePurchasePriceKrw || it.averagePurchasePrice || 0;
         const avgPriceStr = fmtKrw(avgPrice);
+
+        // 현 시세 (현재가)
+        const curPrice = it.lastPriceKrw || it.lastPrice || 0;
+        let curPriceStr = fmtKrw(curPrice);
+        if (isOverseasClassified && it.lastPrice) {
+          curPriceStr = fmtUsd(it.lastPrice);
+        }
+
+        const isPriceMode = state.holdingsPriceMode === 'price';
+        const displayPrice = isPriceMode ? curPriceStr : fmtKrw(mv);
+        // 현시세 모드에서는 평가금액은 불필요하므로 수량 · 평단가로 표시
+        const displaySub = `${qtyStr} · 평단 ${avgPriceStr}`;
+        const priceTitle = isPriceMode ? '현 시세 (현재가)' : '평가금액';
+
+        // 현시세 모드: 모든 종목과 ETF에 대해 일관되게 당일 등락률(dailyReturnRatePct)만 표시 (0%면 0.00% 표시)
+        // 평가금액 모드: 전체 누적 수익률(rate) 표시
+        const dailyRate = Number(it.dailyReturnRatePct || 0);
+        const displayRate = isPriceMode ? fmtPct(dailyRate) : fmtPct(rate);
+        const displaySc = isPriceMode ? signClass(dailyRate) : sc;
+        const rateTitle = isPriceMode ? '당일 등락률' : '누적 수익률';
 
         return `
           <div class="stock-item" onclick="openStockSheet(${idx})">
@@ -2388,12 +2469,12 @@
                   ${etfBadge}
                   <span class="account-tag ${acctClass}">${acctTag}</span>
                 </div>
-                <div class="stock-sub">${qtyStr} · 평단 ${avgPriceStr}</div>
+                <div class="stock-sub">${displaySub}</div>
               </div>
             </div>
             <div class="stock-right">
-              <span class="stock-price">${fmtKrw(mv)}</span>
-              <span class="stock-gain ${sc}">${fmtPct(rate)}</span>
+              <span class="stock-price" title="${priceTitle}">${displayPrice}</span>
+              <span class="stock-gain ${displaySc}" title="${rateTitle}">${displayRate}</span>
             </div>
           </div>
         `;
@@ -2401,6 +2482,13 @@
 
       // 모달 참조를 위해 정렬된 items 보관
       state.filteredItems = items;
+    }
+
+    function updatePriceModeUI() {
+      const mode = state.holdingsPriceMode || 'price';
+      document.querySelectorAll('#priceModeToggle .price-mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
     }
 
     // 종목 상세 바텀시트 열기
@@ -3386,6 +3474,21 @@
         state.searchKeyword = e.target.value;
         renderHoldings();
       });
+
+      // 6-1. 보유 종목 금액 표시 모드 토글 (평가금액 vs 현 시세)
+      const priceModeToggle = document.getElementById('priceModeToggle');
+      if (priceModeToggle) {
+        priceModeToggle.addEventListener('click', (e) => {
+          const btn = e.target.closest('.price-mode-btn');
+          if (!btn) return;
+          const mode = btn.dataset.mode;
+          if (state.holdingsPriceMode === mode) return;
+          state.holdingsPriceMode = mode;
+          localStorage.setItem('holdings_price_mode', mode);
+          updatePriceModeUI();
+          renderHoldings();
+        });
+      }
 
       // 7. 정렬 변경
       document.getElementById('stockSort').addEventListener('change', (e) => {
